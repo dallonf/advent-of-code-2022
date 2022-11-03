@@ -2,6 +2,8 @@
 
 use lazy_static::lazy_static;
 
+pub mod viz;
+
 lazy_static! {
     static ref PUZZLE_INPUT: Vec<i64> = include_str!("./test_input.txt")
         .lines()
