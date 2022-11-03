@@ -2,6 +2,8 @@ use macroquad::prelude::*;
 use std::sync::{Mutex, TryLockError};
 use tap::prelude::*;
 
+mod test_algo;
+
 pub struct DrawContext {
     draw_fn: Mutex<Option<DrawFn>>,
 }
