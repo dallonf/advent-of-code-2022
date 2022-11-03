@@ -70,10 +70,8 @@ fn main() {
     thread::spawn(move || {
         let observer = hot_logic::subscribe();
         loop {
-            let logic_thread =
-                thread::spawn(move || hot_logic::run("test_algo", "part_two", draw_ctx));
             // TODO: figure out how to early-terminate a logic thread
-            logic_thread.join().unwrap().unwrap();
+            hot_logic::run("test_algo", "part_two", draw_ctx).unwrap();
             observer.wait_for_reload();
         }
     });
