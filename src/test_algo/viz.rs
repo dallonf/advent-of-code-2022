@@ -1,5 +1,8 @@
 use crate::DrawContext;
-use macroquad::prelude::*;
+use ggez::{
+    glam::Vec2,
+    graphics::{self, DrawParam},
+};
 
 use crate::draw_utils;
 
@@ -29,20 +32,20 @@ impl PartTwoViz {
     }
     fn render(&self) {
         let parts = self.parts.clone();
-        self.ctx.set_draw_fn(Box::new(move || {
-            clear_background(draw_utils::WHITE);
-
+        self.ctx.set_draw_fn(Box::new(move |canvas, _ctx| {
             let mut y_cursor: f32 = 0.0;
             for part in parts.iter() {
-                draw_text(
-                    &part.initial_mass.to_string(),
-                    8.0,
-                    y_cursor,
-                    16.0,
-                    draw_utils::BLACK,
+                let mut text = graphics::Text::new(part.initial_mass.to_string());
+                text.set_scale(16.0);
+                canvas.draw(
+                    &mut text,
+                    DrawParam::default()
+                        .dest(Vec2::new(8.0, y_cursor))
+                        .color(draw_utils::BLACK),
                 );
                 y_cursor += LINE_HEIGHT;
             }
+            Ok(())
         }))
     }
 }
