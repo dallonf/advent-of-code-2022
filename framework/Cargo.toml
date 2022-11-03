@@ -1,0 +1,11 @@
+[package]
+name = "framework"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["rlib", "dylib"]
+
+[dependencies]
+ggez = "0.8.1"
+lazy_static = "1.4.0"

@@ -1,11 +1,15 @@
 // 2019 Day 1: The Tyranny of the Rocket Equation
 
+use anyhow::Result;
 use lazy_static::lazy_static;
+use framework::DrawContext;
+
+use self::viz::PartTwoViz;
 
 pub mod viz;
 
 lazy_static! {
-    static ref PUZZLE_INPUT: Vec<i64> = include_str!("./test_input.txt")
+    static ref PUZZLE_INPUT: Vec<i64> = include_str!("./test_algo/test_input.txt")
         .lines()
         .map(|it| it.parse().unwrap())
         .collect();
@@ -49,6 +53,11 @@ pub fn part_two(progress: &mut impl PartTwoProgress) -> i64 {
             recursive_fuel_amount(num, progress)
         })
         .sum()
+}
+
+pub fn part_two_viz(ctx: &'static DrawContext) -> Result<String> {
+    let mut progress = PartTwoViz::new(ctx);
+    Ok(part_two(&mut progress).to_string())
 }
 
 #[cfg(test)]

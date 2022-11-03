@@ -1,3 +1,4 @@
+use framework::{draw_utils, DrawContext, DrawFn};
 use ggez::{
     conf::{WindowMode, WindowSetup},
     graphics::{self, Canvas},
@@ -9,20 +10,15 @@ use std::{
 };
 use tap::prelude::*;
 
-mod draw_utils;
-mod test_algo;
+#[hot_lib_reloader::hot_module(dylib = "logic")]
+mod hot_logic {
+    use framework::DrawContext;
+    use ggez::GameError;
 
-pub struct DrawContext {
-    draw_fn: Mutex<Option<DrawFn>>,
-}
+    hot_functions_from_file!("logic/src/lib.rs");
 
-type DrawFn = Box<dyn Fn(&mut Canvas, &mut Context) -> Result<(), GameError> + Send>;
-
-impl DrawContext {
-    pub fn set_draw_fn(&self, draw_fn: DrawFn) {
-        let mut lock = self.draw_fn.lock().unwrap();
-        *lock = Some(Box::new(draw_fn));
-    }
+    #[lib_change_subscription]
+    pub fn subscribe() -> hot_lib_reloader::LibReloadObserver {}
 }
 
 struct AppState {
@@ -72,8 +68,14 @@ fn main() {
     })
     .pipe(|it| Box::leak(it));
     thread::spawn(move || {
-        let mut progress = test_algo::viz::PartTwoViz::new(&draw_ctx);
-        test_algo::part_two(&mut progress);
+        let observer = hot_logic::subscribe();
+        loop {
+            let logic_thread =
+                thread::spawn(move || hot_logic::run("test_algo", "part_two", draw_ctx));
+            // TODO: figure out how to early-terminate a logic thread
+            logic_thread.join().unwrap().unwrap();
+            observer.wait_for_reload();
+        }
     });
 
     let initial_state = AppState {

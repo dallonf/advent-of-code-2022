@@ -1,10 +1,9 @@
-use crate::DrawContext;
 use ggez::{
     glam::Vec2,
     graphics::{self, DrawParam},
 };
 
-use crate::draw_utils;
+use framework::{draw_utils, DrawContext};
 
 use super::PartTwoProgress;
 
