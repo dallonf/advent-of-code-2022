@@ -1,4 +1,4 @@
-use ggez::{
+use framework::ggez::{
     glam::Vec2,
     graphics::{self, DrawParam},
 };

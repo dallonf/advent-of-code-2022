@@ -1,19 +1,19 @@
-use framework::{draw_utils, DrawContext, DrawFn};
-use ggez::{
+use framework::ggez::{
+    self,
     conf::{WindowMode, WindowSetup},
-    graphics::{self, Canvas},
-    Context, ContextBuilder, GameError,
+    graphics, ContextBuilder, GameError,
 };
+use framework::tap::prelude::*;
+use framework::{draw_utils, DrawContext, DrawFn};
 use std::{
     sync::{Mutex, TryLockError},
     thread,
 };
-use tap::prelude::*;
 
 #[hot_lib_reloader::hot_module(dylib = "logic")]
 mod hot_logic {
+    use framework::ggez::GameError;
     use framework::DrawContext;
-    use ggez::GameError;
 
     hot_functions_from_file!("logic/src/lib.rs");
 

@@ -1,7 +1,7 @@
 // 2019 Day 1: The Tyranny of the Rocket Equation
 
-use anyhow::Result;
-use lazy_static::lazy_static;
+use framework::anyhow::Result;
+use framework::lazy_static::lazy_static;
 use framework::DrawContext;
 
 use self::viz::PartTwoViz;

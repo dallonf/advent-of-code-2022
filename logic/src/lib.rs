@@ -1,5 +1,5 @@
 use framework::DrawContext;
-use ggez::GameError;
+use framework::ggez::GameError;
 
 mod test_algo;
 
