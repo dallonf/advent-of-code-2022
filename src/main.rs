@@ -1,25 +1,18 @@
-use framework::ggez::{
+mod draw_ctx;
+mod draw_utils;
+mod test_algo;
+
+use draw_ctx::{DrawContext, DrawFn};
+use ggez::{
     self,
     conf::{WindowMode, WindowSetup},
     graphics, ContextBuilder, GameError,
 };
-use framework::tap::prelude::*;
-use framework::{draw_utils, DrawContext, DrawFn};
 use std::{
     sync::{Mutex, TryLockError},
     thread,
 };
-
-#[hot_lib_reloader::hot_module(dylib = "logic")]
-mod hot_logic {
-    use framework::ggez::GameError;
-    use framework::DrawContext;
-
-    hot_functions_from_file!("logic/src/lib.rs");
-
-    #[lib_change_subscription]
-    pub fn subscribe() -> hot_lib_reloader::LibReloadObserver {}
-}
+use tap::prelude::*;
 
 struct AppState {
     current_draw_fn: DrawFn,
@@ -68,12 +61,7 @@ fn main() {
     })
     .pipe(|it| Box::leak(it));
     thread::spawn(move || {
-        let observer = hot_logic::subscribe();
-        loop {
-            // TODO: figure out how to early-terminate a logic thread
-            hot_logic::run("test_algo", "part_two", draw_ctx).unwrap();
-            observer.wait_for_reload();
-        }
+        test_algo::part_two_viz(draw_ctx).unwrap();
     });
 
     let initial_state = AppState {

@@ -1,7 +1,3 @@
-[workspace]
-resolver = "2"
-members = ["logic", "framework"]
-
 [package]
 name = "advent-of-code-2022"
 version = "0.1.0"
@@ -10,8 +6,10 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-hot-lib-reloader = "0.6.4"
-logic = { path = "logic" }
-framework = { path = "framework" }
+ggez = "0.8.1"
+lazy_static = "1.4.0"
+itertools = "0.10.5"
+tap = "1.0.1"
+anyhow = "1.0.66"
 
 [dev-dependencies]

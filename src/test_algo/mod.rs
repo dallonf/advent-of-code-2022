@@ -1,15 +1,14 @@
+mod viz;
+
 // 2019 Day 1: The Tyranny of the Rocket Equation
 
-use framework::anyhow::Result;
-use framework::lazy_static::lazy_static;
-use framework::DrawContext;
-
-use self::viz::PartTwoViz;
-
-pub mod viz;
+use crate::draw_ctx::DrawContext;
+use anyhow::Result;
+use lazy_static::lazy_static;
+use viz::PartTwoViz;
 
 lazy_static! {
-    static ref PUZZLE_INPUT: Vec<i64> = include_str!("./test_algo/test_input.txt")
+    static ref PUZZLE_INPUT: Vec<i64> = include_str!("./test_input.txt")
         .lines()
         .map(|it| it.parse().unwrap())
         .collect();

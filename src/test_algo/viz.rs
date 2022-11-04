@@ -1,9 +1,9 @@
-use framework::ggez::{
+use ggez::{
     glam::Vec2,
     graphics::{self, DrawParam},
 };
 
-use framework::{draw_utils, DrawContext};
+use crate::{draw_ctx::DrawContext, draw_utils};
 
 use super::PartTwoProgress;
 

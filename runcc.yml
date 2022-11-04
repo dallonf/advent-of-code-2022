@@ -1,5 +1,0 @@
-commands:
-  bin: |
-    cargo watch -i logic -x run
-  logic: |
-    cargo watch -w logic -x "build -p logic"

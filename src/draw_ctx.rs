@@ -1,12 +1,4 @@
-pub mod draw_utils;
-
 use std::sync::Mutex;
-
-pub use anyhow;
-pub use ggez;
-pub use itertools;
-pub use tap;
-pub use lazy_static;
 
 use ggez::{graphics::Canvas, GameError};
 
