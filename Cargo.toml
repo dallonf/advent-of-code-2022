@@ -11,5 +11,7 @@ lazy_static = "1.4.0"
 itertools = "0.10.5"
 tap = "1.0.1"
 anyhow = "1.0.66"
+deno_core = "0.157.0"
+tokio = { version = "1.21.2", features = ["full"] }
 
 [dev-dependencies]

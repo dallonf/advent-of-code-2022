@@ -2,6 +2,7 @@ mod draw_ctx;
 mod draw_utils;
 mod test_algo;
 
+use deno_core::error::AnyError;
 use draw_ctx::{DrawContext, DrawFn};
 use ggez::{
     self,
@@ -9,6 +10,7 @@ use ggez::{
     graphics, ContextBuilder, GameError,
 };
 use std::{
+    rc::Rc,
     sync::{Mutex, TryLockError},
     thread,
 };
@@ -42,7 +44,32 @@ impl ggez::event::EventHandler<GameError> for AppState {
     }
 }
 
+async fn run_js(file_path: &str) -> Result<(), AnyError> {
+    let main_module = deno_core::resolve_path(file_path)?;
+    let mut js_runtime = deno_core::JsRuntime::new(deno_core::RuntimeOptions {
+        module_loader: Some(Rc::new(deno_core::FsModuleLoader)),
+        ..Default::default()
+    });
+    js_runtime
+        .execute_script("[runjs:runtime.js]", include_str!("./runtime.js"))
+        .unwrap();
+    let mod_id = js_runtime.load_main_module(&main_module, None).await?;
+    let result = js_runtime.mod_evaluate(mod_id);
+    js_runtime.run_event_loop(false).await?;
+    result.await?
+}
+
 fn main() {
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .unwrap();
+    if let Err(error) = runtime.block_on(run_js("./example.js")) {
+        eprintln!("error: {}", error);
+    }
+}
+
+fn main_ggez() {
     let conf = ggez::conf::Conf::new();
     let (ctx, event_loop) = ContextBuilder::new("aoc2022", "dallonf")
         .default_conf(conf)
