@@ -10,7 +10,7 @@ ggez = "0.8.1"
 lazy_static = "1.4.0"
 itertools = "0.10.5"
 tap = "1.0.1"
-anyhow = "1.0.66"
+anyhow = { version = "1.0.66", features = ["backtrace"] }
 deno_core = "0.155.0"
 tokio = { version = "1.21.2", features = ["full"] }
 
