@@ -13,5 +13,6 @@ tap = "1.0.1"
 anyhow = { version = "1.0.66", features = ["backtrace"] }
 deno_core = "0.155.0"
 tokio = { version = "1.21.2", features = ["full"] }
+notify = { version = "5.0.0", default-features = false, features = ["macos_kqueue"] }
 
 [dev-dependencies]

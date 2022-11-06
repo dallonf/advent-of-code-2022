@@ -9,15 +9,18 @@ use draw_ctx::{DrawContext, DrawFn};
 use ggez::{
     self,
     conf::{WindowMode, WindowSetup},
-    graphics, ContextBuilder, GameError,
+    glam::Vec2,
+    graphics::{self, DrawParam},
+    ContextBuilder, GameError,
 };
 use js::draw_runtime::DrawRuntime;
 use lazy_static::__Deref;
+use notify::{RecursiveMode, Watcher};
 use std::{
     borrow::Borrow,
     future::Future,
     rc::Rc,
-    sync::{Mutex, TryLockError},
+    sync::{Arc, Mutex, TryLockError},
     thread,
 };
 use tap::prelude::*;
@@ -25,6 +28,7 @@ use tap::prelude::*;
 struct AppState {
     // current_draw_fn: DrawFn,
     // draw_ctx: &'static DrawContext,
+    draw_runtime: Arc<Mutex<DrawRuntime>>,
 }
 
 impl ggez::event::EventHandler<GameError> for AppState {
@@ -33,19 +37,23 @@ impl ggez::event::EventHandler<GameError> for AppState {
     }
 
     fn draw(&mut self, ctx: &mut ggez::Context) -> Result<(), GameError> {
-        // match self.draw_ctx.draw_fn.try_lock() {
-        //     Ok(mut draw_fn) => {
-        //         let inner = draw_fn.take();
-        //         if let Some(new_draw_fn) = inner {
-        //             self.current_draw_fn = new_draw_fn;
-        //         }
-        //     }
-        //     Err(TryLockError::WouldBlock) => {}
-        //     Err(TryLockError::Poisoned(_)) => return Err(GameError::LockError),
-        // }
-        // let mut canvas = graphics::Canvas::from_frame(ctx, draw_utils::WHITE);
-        // (self.current_draw_fn)(&mut canvas, ctx)?;
-        // canvas.finish(ctx)?;
+        let mut runtime = self.draw_runtime.lock().unwrap();
+        let draw_result = runtime.draw();
+        let text_to_draw = match draw_result {
+            Ok(it) => it,
+            Err(err) => format!("error calling draw(): {:?}", err),
+        };
+
+        let mut canvas = graphics::Canvas::from_frame(ctx, draw_utils::WHITE);
+        let mut text = graphics::Text::new(text_to_draw);
+        text.set_scale(16.0);
+        canvas.draw(
+            &mut text,
+            DrawParam::default()
+                .dest(Vec2::new(8.0, 8.0))
+                .color(draw_utils::BLACK),
+        );
+        canvas.finish(ctx)?;
         Ok(())
     }
 }
@@ -95,20 +103,45 @@ impl ggez::event::EventHandler<GameError> for AppState {
 
 fn main() -> anyhow::Result<()> {
     let mut runtime = DrawRuntime::new("./scripts/puzzles/test_algo/viz.js");
-    let result = runtime.draw()?;
-    println!("draw() = {result}");
-    // let conf = ggez::conf::Conf::new();
-    // let (ctx, event_loop) = ContextBuilder::new("aoc2022", "dallonf")
-    //     .default_conf(conf)
-    //     .window_mode(
-    //         WindowMode::default()
-    //             .resizable(false)
-    //             .dimensions(1366.0, 768.0)
-    //             .resize_on_scale_factor_change(false),
-    //     )
-    //     .window_setup(WindowSetup::default().title("Advent of Code 2022"))
-    //     .build()
-    //     .unwrap();
+    let runtime = Arc::new(Mutex::new(runtime));
+
+    let initial_state = AppState {
+        draw_runtime: runtime.clone(),
+        // current_draw_fn: Box::new(|_, _| Ok(())),
+        // draw_ctx,
+    };
+
+    let mut watcher =
+        notify::recommended_watcher(|res: Result<notify::Event, notify::Error>| match res {
+            Ok(event) => println!("Event {:?} for paths: {:?}", event.kind, event.paths),
+            Err(err) => eprintln!("failed to watch files: {err}"),
+        })?;
+
+    let loaded_modules = runtime.lock().unwrap().get_loaded_modules()?;
+    println!("watching files: {:?}", &loaded_modules);
+    for module_url in loaded_modules.iter() {
+        println!("setting up watch for {:?}", module_url);
+        let path = module_url
+            .to_file_path()
+            .map_err(|_| anyhow!("Can't convert to path"))?;
+        watcher.watch(path.as_path(), RecursiveMode::NonRecursive)?;
+    }
+
+    // let result = runtime.draw()?;
+    // println!("draw() = {result}");
+
+    let conf = ggez::conf::Conf::new();
+    let (ctx, event_loop) = ContextBuilder::new("aoc2022", "dallonf")
+        .default_conf(conf)
+        .window_mode(
+            WindowMode::default()
+                .resizable(false)
+                .dimensions(1366.0, 768.0)
+                .resize_on_scale_factor_change(false),
+        )
+        .window_setup(WindowSetup::default().title("Advent of Code 2022"))
+        .build()
+        .unwrap();
 
     // let draw_ctx: &'static DrawContext = Box::new(DrawContext {
     //     draw_fn: Mutex::new(None),
@@ -118,10 +151,5 @@ fn main() -> anyhow::Result<()> {
     //     test_algo::part_two_viz(draw_ctx).unwrap();
     // });
 
-    // let initial_state = AppState {
-    // current_draw_fn: Box::new(|_, _| Ok(())),
-    // draw_ctx,
-    // };
-    // ggez::event::run(ctx, event_loop, initial_state);
-    Ok(())
+    ggez::event::run(ctx, event_loop, initial_state);
 }

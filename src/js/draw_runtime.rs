@@ -1,10 +1,13 @@
 use anyhow::{anyhow, Error, Result};
 use deno_core::{
+    url::Url,
     v8::{self, Global},
     JsRuntime, ModuleLoader,
 };
 use std::{fmt::Display, rc::Rc, sync::Arc};
 use tap::prelude::*;
+
+use super::module_loader::TrackingModuleLoader;
 
 #[derive(Clone)]
 pub struct InitError(Arc<Error>);
@@ -29,28 +32,45 @@ impl From<Error> for InitError {
     }
 }
 
-pub type InitResult<T> = std::result::Result<T, InitError>;
+pub enum DrawRuntimeInitResult {
+    Succeeded(DrawRuntimeData),
+    Error(InitError, Option<Url>),
+}
 
-pub struct DrawRuntime(InitResult<DrawRuntimeData>);
+pub struct DrawRuntime {
+    result: DrawRuntimeInitResult,
+}
 
 struct DrawRuntimeData {
     js_runtime: JsRuntime,
+    tracking_loader: Rc<TrackingModuleLoader>,
     draw_fn: v8::Global<v8::Function>,
 }
 
 impl DrawRuntime {
+    fn from_error(err: Error, url: Option<Url>) -> Self {
+        DrawRuntime {
+            result: DrawRuntimeInitResult::Error(err.into(), url),
+        }
+    }
+
     pub fn new(module_path: &str) -> Self {
         let tk_runtime = match tokio::runtime::Builder::new_current_thread()
             .enable_all()
             .build()
         {
             Ok(it) => it,
-            Err(err) => return DrawRuntime(Err(anyhow!(err).into())),
+            Err(err) => return Self::from_error(anyhow!(err), None),
+        };
+
+        let viz_module_path = match deno_core::resolve_path(module_path) {
+            Ok(it) => it,
+            Err(err) => return Self::from_error(anyhow!(err), None),
         };
 
         let data = match tk_runtime.block_on(async {
             let viz_module_path = deno_core::resolve_path(module_path)?;
-            let loader = Rc::new(deno_core::FsModuleLoader);
+            let loader = Rc::new(TrackingModuleLoader::new());
             let mut js_runtime = deno_core::JsRuntime::new(deno_core::RuntimeOptions {
                 module_loader: Some(loader.clone()),
                 ..Default::default()
@@ -87,25 +107,42 @@ impl DrawRuntime {
 
             anyhow::Ok(DrawRuntimeData {
                 js_runtime,
+                tracking_loader: loader.clone(),
                 draw_fn,
             })
         }) {
             Ok(it) => it,
             Err(err) => {
-                return DrawRuntime(Err(anyhow!(err).context("Setting up JS runtime").into()))
+                return Self::from_error(
+                    anyhow!(err).context("Setting up JS runtime"),
+                    Some(viz_module_path),
+                )
             }
         };
 
-        DrawRuntime(Ok(data))
+        DrawRuntime {
+            result: DrawRuntimeInitResult::Succeeded(data),
+        }
+    }
+
+    pub fn get_loaded_modules(&mut self) -> Result<Vec<Url>> {
+        match &self.result {
+            DrawRuntimeInitResult::Succeeded(DrawRuntimeData {
+                tracking_loader, ..
+            }) => Ok(tracking_loader.loaded_files()),
+            DrawRuntimeInitResult::Error(_, Some(url)) => Ok(vec![url.clone()]),
+            DrawRuntimeInitResult::Error(err, None) => Err(anyhow!(err.0.clone())),
+        }
     }
 
     pub fn draw(&mut self) -> Result<String> {
         let DrawRuntimeData {
             js_runtime,
             draw_fn,
-        } = match &mut self.0 {
-            Ok(data) => data,
-            Err(err) => return Err(anyhow!(err.clone().0)),
+            ..
+        } = match &mut self.result {
+            DrawRuntimeInitResult::Succeeded(it) => it,
+            DrawRuntimeInitResult::Error(err, _) => return Err(anyhow!(err.0.clone())),
         };
 
         let mut scope = js_runtime.handle_scope();
