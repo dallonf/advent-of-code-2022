@@ -1,5 +1,6 @@
 mod draw_ctx;
 mod draw_utils;
+mod js;
 mod test_algo;
 
 use anyhow::anyhow;
@@ -10,6 +11,7 @@ use ggez::{
     conf::{WindowMode, WindowSetup},
     graphics, ContextBuilder, GameError,
 };
+use js::draw_runtime::DrawRuntime;
 use lazy_static::__Deref;
 use std::{
     borrow::Borrow,
@@ -68,40 +70,33 @@ impl ggez::event::EventHandler<GameError> for AppState {
 //     Ok(())
 // }
 
-async fn run_js(file_path: &str) -> Result<(), AnyError> {
-    let main_module = deno_core::resolve_path(file_path)?;
-    let runjs_extension = Extension::builder()
-        .ops(vec![
-            // op_read_file::decl(),
-            // op_write_file::decl(),
-            // op_remove_file::decl(),
-        ])
-        .build();
-    let mut js_runtime = deno_core::JsRuntime::new(deno_core::RuntimeOptions {
-        module_loader: Some(Rc::new(deno_core::FsModuleLoader)),
-        extensions: vec![runjs_extension],
-        ..Default::default()
-    });
-    js_runtime
-        .execute_script("[runjs:runtime.js]", include_str!("./runtime.js"))
-        .unwrap();
-    let mod_id = js_runtime.load_main_module(&main_module, None).await?;
-    let result = js_runtime.mod_evaluate(mod_id);
-    js_runtime.run_event_loop(false).await?;
-    result.await?
-}
-
-fn main_js() {
-    let runtime = tokio::runtime::Builder::new_current_thread()
-        .enable_all()
-        .build()
-        .unwrap();
-    if let Err(error) = runtime.block_on(run_js("./example.js")) {
-        eprintln!("error: {}", error);
-    }
-}
+// async fn run_js(file_path: &str) -> Result<(), AnyError> {
+//     let main_module = deno_core::resolve_path(file_path)?;
+//     let runjs_extension = Extension::builder()
+//         .ops(vec![
+//             // op_read_file::decl(),
+//             // op_write_file::decl(),
+//             // op_remove_file::decl(),
+//         ])
+//         .build();
+//     let mut js_runtime = deno_core::JsRuntime::new(deno_core::RuntimeOptions {
+//         module_loader: Some(Rc::new(deno_core::FsModuleLoader)),
+//         extensions: vec![runjs_extension],
+//         ..Default::default()
+//     });
+//     js_runtime
+//         .execute_script("[runjs:runtime.js]", include_str!("./runtime.js"))
+//         .unwrap();
+//     let mod_id = js_runtime.load_main_module(&main_module, None).await?;
+//     let result = js_runtime.mod_evaluate(mod_id);
+//     js_runtime.run_event_loop(false).await?;
+//     result.await?
+// }
 
 fn main() -> anyhow::Result<()> {
+    let mut runtime = DrawRuntime::new("./scripts/puzzles/test_algo/viz.js");
+    let result = runtime.draw()?;
+    println!("draw() = {result}");
     // let conf = ggez::conf::Conf::new();
     // let (ctx, event_loop) = ContextBuilder::new("aoc2022", "dallonf")
     //     .default_conf(conf)
@@ -122,56 +117,6 @@ fn main() -> anyhow::Result<()> {
     // thread::spawn(move || {
     //     test_algo::part_two_viz(draw_ctx).unwrap();
     // });
-
-    let tk_runtime = tokio::runtime::Builder::new_current_thread()
-        .enable_all()
-        .build()
-        .unwrap();
-
-    let async_setup = async {
-        let viz_module = deno_core::resolve_path("./scripts/puzzles/test_algo/viz.js")?;
-        let loader = Rc::new(deno_core::FsModuleLoader);
-        let mut js_runtime = deno_core::JsRuntime::new(deno_core::RuntimeOptions {
-            module_loader: Some(loader.clone()),
-            ..Default::default()
-        });
-        js_runtime
-            .execute_script("[aoc2022:runtime.js]", include_str!("./runtime.js"))
-            .unwrap();
-        let source = loader.load(&viz_module, None, false).await?;
-        let viz_module_id = js_runtime
-            .load_main_module(
-                &viz_module,
-                Some(String::from_utf8_lossy(&source.code).to_string()),
-            )
-            .await?;
-
-        let recv = js_runtime.mod_evaluate(viz_module_id);
-        js_runtime.run_event_loop(false).await?;
-        recv.await??;
-
-        let viz_module = js_runtime.get_module_namespace(viz_module_id)?;
-        let mut scope = js_runtime.handle_scope();
-        let key = deno_core::v8::String::new(&mut scope, "draw").unwrap();
-        let draw_fn = viz_module
-            .open(&mut scope)
-            .get(&mut scope, key.into())
-            .ok_or(anyhow!("No draw() function defined in viz.js"))?
-            .try_conv::<v8::Local<v8::Function>>()
-            .expect("draw is not a function");
-        let receiver = v8::undefined(&mut scope);
-        let result = draw_fn.call(&mut scope, receiver.into(), &vec![]);
-        let result_readable = serde_v8::from_v8::<serde_json::Value>(&mut scope, result.unwrap())?;
-        dbg!(&result_readable);
-        anyhow::Ok(())
-    };
-
-    tk_runtime.block_on(async_setup)?;
-
-    // js_runtime.get_module_namespace(module_id)
-    // js_runtime
-    //     .execute_script("[runjs:runtime.js]", include_str!("./runtime.js"))
-    //     .unwrap();
 
     // let initial_state = AppState {
     // current_draw_fn: Box::new(|_, _| Ok(())),
