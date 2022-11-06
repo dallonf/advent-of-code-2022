@@ -1,9 +1,7 @@
 use anyhow::{anyhow, Result};
 use notify::{ReadDirectoryChangesWatcher, RecursiveMode, Watcher as NotifyWatcher};
-use std::{
-    path::{Path, PathBuf},
-    sync::{Arc, Mutex},
-};
+use std::path::PathBuf;
+use std::sync::{Arc, Mutex};
 
 use super::draw_runtime::DrawRuntime;
 

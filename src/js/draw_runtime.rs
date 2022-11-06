@@ -50,7 +50,7 @@ pub struct DrawRuntime {
     result: DrawRuntimeInitResult,
 }
 
-struct DrawRuntimeData {
+pub struct DrawRuntimeData {
     js_runtime: JsRuntime,
     tracking_loader: Rc<TrackingModuleLoader>,
     draw_fn: v8::Global<v8::Function>,
