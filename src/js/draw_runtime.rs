@@ -37,7 +37,14 @@ pub enum DrawRuntimeInitResult {
     Error(InitError, Option<Url>),
 }
 
+impl DrawRuntimeInitResult {
+    fn from_error(err: Error, url: Option<Url>) -> Self {
+        DrawRuntimeInitResult::Error(err.into(), url)
+    }
+}
+
 pub struct DrawRuntime {
+    initial_module_path: String,
     result: DrawRuntimeInitResult,
 }
 
@@ -48,24 +55,28 @@ struct DrawRuntimeData {
 }
 
 impl DrawRuntime {
-    fn from_error(err: Error, url: Option<Url>) -> Self {
-        DrawRuntime {
-            result: DrawRuntimeInitResult::Error(err.into(), url),
-        }
-    }
-
     pub fn new(module_path: &str) -> Self {
         let tk_runtime = match tokio::runtime::Builder::new_current_thread()
             .enable_all()
             .build()
         {
             Ok(it) => it,
-            Err(err) => return Self::from_error(anyhow!(err), None),
+            Err(err) => {
+                return Self {
+                    result: DrawRuntimeInitResult::from_error(anyhow!(err), None),
+                    initial_module_path: module_path.to_string(),
+                }
+            }
         };
 
         let viz_module_path = match deno_core::resolve_path(module_path) {
             Ok(it) => it,
-            Err(err) => return Self::from_error(anyhow!(err), None),
+            Err(err) => {
+                return Self {
+                    result: DrawRuntimeInitResult::from_error(anyhow!(err), None),
+                    initial_module_path: module_path.to_string(),
+                }
+            }
         };
 
         let data = match tk_runtime.block_on(async {
@@ -113,15 +124,19 @@ impl DrawRuntime {
         }) {
             Ok(it) => it,
             Err(err) => {
-                return Self::from_error(
-                    anyhow!(err).context("Setting up JS runtime"),
-                    Some(viz_module_path),
-                )
+                return Self {
+                    result: DrawRuntimeInitResult::from_error(
+                        anyhow!(err).context("Setting up JS runtime"),
+                        Some(viz_module_path),
+                    ),
+                    initial_module_path: module_path.to_string(),
+                };
             }
         };
 
         DrawRuntime {
             result: DrawRuntimeInitResult::Succeeded(data),
+            initial_module_path: module_path.to_string(),
         }
     }
 
@@ -166,5 +181,9 @@ impl DrawRuntime {
             .to_rust_string_lossy(&mut scope);
 
         Ok(result)
+    }
+
+    pub fn restart(&self) -> Self {
+        Self::new(&self.initial_module_path)
     }
 }

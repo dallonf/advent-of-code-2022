@@ -14,10 +14,11 @@ use ggez::{
     ContextBuilder, GameError,
 };
 use js::draw_runtime::DrawRuntime;
+use js::watcher::Watcher;
 use lazy_static::__Deref;
-use notify::{RecursiveMode, Watcher};
+use notify::{RecursiveMode, Watcher as NotifyWatcher};
 use std::{
-    borrow::Borrow,
+    borrow::{Borrow, BorrowMut},
     future::Future,
     rc::Rc,
     sync::{Arc, Mutex, TryLockError},
@@ -26,13 +27,22 @@ use std::{
 use tap::prelude::*;
 
 struct AppState {
-    // current_draw_fn: DrawFn,
-    // draw_ctx: &'static DrawContext,
     draw_runtime: Arc<Mutex<DrawRuntime>>,
+    watcher: Watcher,
 }
 
 impl ggez::event::EventHandler<GameError> for AppState {
     fn update(&mut self, _ctx: &mut ggez::Context) -> Result<(), GameError> {
+        if self.watcher.is_dirty() {
+            self.watcher
+                .stop_watching()
+                .map_err(|err| GameError::CustomError(err.to_string()))?;
+            let mut runtime_ref = self.draw_runtime.lock().unwrap();
+            *runtime_ref = runtime_ref.restart();
+            self.watcher
+                .start_watching(&mut runtime_ref)
+                .map_err(|err| GameError::CustomError(err.to_string()))?;
+        }
         Ok(())
     }
 
@@ -105,30 +115,16 @@ fn main() -> anyhow::Result<()> {
     let mut runtime = DrawRuntime::new("./scripts/puzzles/test_algo/viz.js");
     let runtime = Arc::new(Mutex::new(runtime));
 
-    let initial_state = AppState {
+    let mut initial_state = AppState {
+        watcher: Watcher::new()?,
         draw_runtime: runtime.clone(),
         // current_draw_fn: Box::new(|_, _| Ok(())),
         // draw_ctx,
     };
 
-    let mut watcher =
-        notify::recommended_watcher(|res: Result<notify::Event, notify::Error>| match res {
-            Ok(event) => println!("Event {:?} for paths: {:?}", event.kind, event.paths),
-            Err(err) => eprintln!("failed to watch files: {err}"),
-        })?;
-
-    let loaded_modules = runtime.lock().unwrap().get_loaded_modules()?;
-    println!("watching files: {:?}", &loaded_modules);
-    for module_url in loaded_modules.iter() {
-        println!("setting up watch for {:?}", module_url);
-        let path = module_url
-            .to_file_path()
-            .map_err(|_| anyhow!("Can't convert to path"))?;
-        watcher.watch(path.as_path(), RecursiveMode::NonRecursive)?;
-    }
-
-    // let result = runtime.draw()?;
-    // println!("draw() = {result}");
+    initial_state
+        .watcher
+        .start_watching(runtime.lock().unwrap().borrow_mut())?;
 
     let conf = ggez::conf::Conf::new();
     let (ctx, event_loop) = ContextBuilder::new("aoc2022", "dallonf")
