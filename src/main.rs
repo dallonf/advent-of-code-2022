@@ -55,7 +55,7 @@ impl ggez::event::EventHandler<GameError> for AppState {
         };
 
         let mut canvas = graphics::Canvas::from_frame(ctx, draw_utils::WHITE);
-        let mut text = graphics::Text::new(text_to_draw);
+        let mut text = graphics::Text::new(&text_to_draw);
         text.set_scale(16.0);
         canvas.draw(
             &mut text,

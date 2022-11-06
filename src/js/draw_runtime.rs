@@ -1,8 +1,10 @@
 use anyhow::{anyhow, Error, Result};
 use deno_core::{
+    error::AnyError,
+    op,
     url::Url,
     v8::{self, Global},
-    JsRuntime, ModuleLoader,
+    Extension, JsRuntime, ModuleLoader, OpState, Resource,
 };
 use std::{fmt::Display, rc::Rc, sync::Arc};
 use tap::prelude::*;
@@ -82,13 +84,20 @@ impl DrawRuntime {
         let data = match tk_runtime.block_on(async {
             let viz_module_path = deno_core::resolve_path(module_path)?;
             let loader = Rc::new(TrackingModuleLoader::new());
+
+            let extension = Extension::builder()
+                .ops(vec![into_rust_obj::decl(), op_unwrap_rust_pointer::decl()])
+                .js(vec![(
+                    "[aoc2022:runtime.js]",
+                    include_str!("../runtime.js"),
+                )])
+                .build();
+
             let mut js_runtime = deno_core::JsRuntime::new(deno_core::RuntimeOptions {
                 module_loader: Some(loader.clone()),
+                extensions: vec![extension],
                 ..Default::default()
             });
-            js_runtime
-                .execute_script("[aoc2022:runtime.js]", include_str!("../runtime.js"))
-                .unwrap();
 
             let source = loader.load(&viz_module_path, None, false).await?;
             let viz_module_id = js_runtime
@@ -186,4 +195,29 @@ impl DrawRuntime {
     pub fn restart(&self) -> Self {
         Self::new(&self.initial_module_path)
     }
+}
+
+struct PassToJs {
+    x: i32,
+}
+
+impl PassToJs {
+    fn print(&self) {
+        println!("PassToJs: {}", self.x);
+    }
+}
+
+impl Resource for PassToJs {}
+
+#[op]
+fn into_rust_obj(state: &mut OpState, x: i32) -> std::result::Result<u32, AnyError> {
+    let resource_id = state.resource_table.add(PassToJs { x });
+    Ok(resource_id)
+}
+
+#[op]
+fn op_unwrap_rust_pointer(state: &mut OpState, pointer: u32) -> std::result::Result<i32, AnyError> {
+    let obj = state.resource_table.get::<PassToJs>(pointer)?;
+    obj.print();
+    Ok(obj.x)
 }
