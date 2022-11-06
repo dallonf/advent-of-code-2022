@@ -3,6 +3,8 @@ mod draw_utils;
 mod js;
 mod test_algo;
 
+use std::{cell::RefCell, rc::Rc};
+
 use ggez::{
     self,
     conf::{WindowMode, WindowSetup},
@@ -12,6 +14,7 @@ use ggez::{
 };
 use js::draw_runtime::DrawRuntime;
 use js::watcher::Watcher;
+use tap::Pipe;
 
 struct AppState {
     draw_runtime: DrawRuntime,
@@ -35,16 +38,16 @@ impl ggez::event::EventHandler<GameError> for AppState {
 
     fn draw(&mut self, ctx: &mut ggez::Context) -> Result<(), GameError> {
         let runtime = &mut self.draw_runtime;
-        let draw_result = runtime.draw();
+        let mut canvas = graphics::Canvas::from_frame(ctx, draw_utils::WHITE);
+
+        let draw_result = runtime.draw(ctx, &mut canvas);
         let text_to_draw = match draw_result {
             Ok(it) => it,
             Err(err) => format!("error calling draw(): {:?}", err),
         };
-
         // TODO: trim this - with backtraces, the text can get so long that it crashes ggez
-
-        let mut canvas = graphics::Canvas::from_frame(ctx, draw_utils::WHITE);
         let mut text = graphics::Text::new(&text_to_draw);
+
         text.set_scale(16.0);
         canvas.draw(
             &mut text,
@@ -52,6 +55,7 @@ impl ggez::event::EventHandler<GameError> for AppState {
                 .dest(Vec2::new(8.0, 8.0))
                 .color(draw_utils::BLACK),
         );
+
         canvas.finish(ctx)?;
         Ok(())
     }

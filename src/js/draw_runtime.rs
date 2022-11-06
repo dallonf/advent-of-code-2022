@@ -6,7 +6,11 @@ use deno_core::{
     v8::{self, Global},
     Extension, JsRuntime, ModuleLoader, OpState, Resource,
 };
-use std::{fmt::Display, rc::Rc, sync::Arc};
+use ggez::{
+    glam::Vec2,
+    graphics::{self, Canvas, FillOptions},
+};
+use std::{cell::RefCell, fmt::Display, rc::Rc, sync::Arc};
 use tap::prelude::*;
 
 use super::module_loader::TrackingModuleLoader;
@@ -54,6 +58,7 @@ pub struct DrawRuntimeData {
     js_runtime: JsRuntime,
     tracking_loader: Rc<TrackingModuleLoader>,
     draw_fn: v8::Global<v8::Function>,
+    internal_utils: v8::Global<v8::Object>,
 }
 
 impl DrawRuntime {
@@ -86,11 +91,12 @@ impl DrawRuntime {
             let loader = Rc::new(TrackingModuleLoader::new());
 
             let extension = Extension::builder()
-                .ops(vec![into_rust_obj::decl(), op_unwrap_rust_pointer::decl()])
-                .js(vec![(
-                    "[aoc2022:runtime.js]",
-                    include_str!("../runtime.js"),
-                )])
+                .ops(vec![
+                    into_rust_obj::decl(),
+                    op_unwrap_rust_pointer::decl(),
+                    op_draw::decl(),
+                ])
+                .js(vec![("[aoc2022:runtime.js]", include_str!("./runtime.js"))])
                 .build();
 
             let mut js_runtime = deno_core::JsRuntime::new(deno_core::RuntimeOptions {
@@ -98,6 +104,14 @@ impl DrawRuntime {
                 extensions: vec![extension],
                 ..Default::default()
             });
+
+            let internal_utils = {
+                let result = js_runtime
+                    .execute_script("[aoc2022:internal.js]", include_str!("./internal.js"))?;
+                let mut scope = js_runtime.handle_scope();
+                let as_obj = result.open(&mut scope).to_object(&mut scope).unwrap();
+                Global::new(&mut scope, as_obj)
+            };
 
             let source = loader.load(&viz_module_path, None, false).await?;
             let viz_module_id = js_runtime
@@ -129,6 +143,7 @@ impl DrawRuntime {
                 js_runtime,
                 tracking_loader: loader.clone(),
                 draw_fn,
+                internal_utils,
             })
         }) {
             Ok(it) => it,
@@ -159,21 +174,67 @@ impl DrawRuntime {
         }
     }
 
-    pub fn draw(&mut self) -> Result<String> {
+    pub fn draw(&mut self, gfx_ctx: &ggez::Context, canvas: &mut Canvas) -> Result<String> {
         let DrawRuntimeData {
             js_runtime,
             draw_fn,
+            internal_utils,
             ..
         } = match &mut self.result {
             DrawRuntimeInitResult::Succeeded(it) => it,
             DrawRuntimeInitResult::Error(err, _) => return Err(anyhow!(err.0.clone())),
         };
 
+        // AAAAAAAH
+        // we need to get a raw pointer to this context in order to
+        // send it to V8
+        // so we'll need to be VERY CERTAIN to get rid of these pointers before
+        // ending draw()
+        struct DrawContextResource {
+            op_state: Rc<RefCell<OpState>>,
+            resource_id: u32,
+        }
+        impl Drop for DrawContextResource {
+            fn drop(&mut self) {
+                self.op_state
+                    .borrow_mut()
+                    .resource_table
+                    .close(self.resource_id)
+                    .unwrap()
+            }
+        }
+        impl DrawContextResource {
+            fn new(op_state: Rc<RefCell<OpState>>, draw_ctx: DrawContext) -> Self {
+                let resource_id = op_state.borrow_mut().resource_table.add(draw_ctx);
+                Self {
+                    op_state,
+                    resource_id,
+                }
+            }
+        }
+        let draw_ctx = DrawContext { gfx_ctx, canvas };
+        let draw_ctx_resource = DrawContextResource::new(js_runtime.op_state().clone(), draw_ctx);
+
         let mut scope = js_runtime.handle_scope();
+        let js_draw_ctx = {
+            let internal_utils = internal_utils.open(&mut scope);
+            let undefined = v8::undefined(&mut scope);
+            let key = v8::String::new(&mut scope, "createDrawCtx").unwrap().into();
+            let create_draw_ctx = internal_utils
+                .get(&mut scope, key)
+                .unwrap()
+                .try_conv::<v8::Local<v8::Function>>()
+                .unwrap();
+            let args =
+                vec![v8::Number::new(&mut scope, draw_ctx_resource.resource_id as f64).into()];
+            create_draw_ctx
+                .call(&mut scope, undefined.into(), &args)
+                .ok_or_else(|| anyhow!("Couldn't create a draw context"))?
+        };
         let undefined = v8::undefined(&mut scope);
         let result = draw_fn
             .open(&mut scope)
-            .call(&mut scope, undefined.into(), &vec![])
+            .call(&mut scope, undefined.into(), &vec![js_draw_ctx])
             .ok_or_else(|| anyhow!("Error calling draw()"))?
             .pipe(|it| {
                 if it.is_string() {
@@ -220,4 +281,62 @@ fn op_unwrap_rust_pointer(state: &mut OpState, pointer: u32) -> std::result::Res
     let obj = state.resource_table.get::<PassToJs>(pointer)?;
     obj.print();
     Ok(obj.x)
+}
+
+struct DrawContext {
+    gfx_ctx: *const ggez::Context,
+    canvas: *mut Canvas,
+}
+impl DrawContext {
+    /// Must only be used in a synchronous op
+    unsafe fn gfx_ctx(&self) -> &ggez::Context {
+        std::mem::transmute(self.gfx_ctx)
+    }
+
+    /// Must only be used in a synchronous op
+    unsafe fn canvas(&self) -> &mut Canvas {
+        std::mem::transmute(self.canvas)
+    }
+}
+impl Resource for DrawContext {}
+
+#[op]
+fn op_draw(
+    state: &mut OpState,
+    ctx_ptr: u32,
+    shape: String,
+    params: Vec<deno_core::serde_json::Value>,
+) -> std::result::Result<(), AnyError> {
+    let ctx = state.resource_table.get::<DrawContext>(ctx_ptr)?;
+
+    match shape.as_str() {
+        "rectangle" => {
+            let mut params_iter = params.iter();
+            let x = params_iter
+                .next()
+                .and_then(|it| it.as_f64())
+                .ok_or_else(|| anyhow!("x must be number"))?;
+            let y = params_iter
+                .next()
+                .and_then(|it| it.as_f64())
+                .ok_or_else(|| anyhow!("y must be number"))?;
+            let width = params_iter
+                .next()
+                .and_then(|it| it.as_f64())
+                .ok_or_else(|| anyhow!("width must be number"))?;
+            let height = params_iter
+                .next()
+                .and_then(|it| it.as_f64())
+                .ok_or_else(|| anyhow!("height must be number"))?;
+            let shape = graphics::Mesh::new_rectangle(
+                unsafe { ctx.gfx_ctx() },
+                graphics::DrawMode::Fill(FillOptions::default()),
+                graphics::Rect::new(0.0, 0.0, width as f32, height as f32),
+                graphics::Color::BLACK,
+            )?;
+            unsafe { ctx.canvas() }.draw(&shape, Vec2::new(x as f32, y as f32));
+        }
+        other => return Err(anyhow!("Unsupported shape: {other}")),
+    }
+    Ok(())
 }

@@ -5,6 +5,10 @@ console.log(pointer);
 const output = Deno.core.opSync("op_unwrap_rust_pointer", pointer);
 console.log("unwrapped:", output);
 
-export function draw() {
+export function draw(ctx) {
+  for (let index = 0; index < 100; index++) {
+    ctx.drawRectangle(100, 100, 150, 150);
+  }
+
   return rand().toString();
 }
