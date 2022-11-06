@@ -54,6 +54,8 @@ impl ggez::event::EventHandler<GameError> for AppState {
             Err(err) => format!("error calling draw(): {:?}", err),
         };
 
+        // TODO: trim this - with backtraces, the text can get so long that it crashes ggez
+
         let mut canvas = graphics::Canvas::from_frame(ctx, draw_utils::WHITE);
         let mut text = graphics::Text::new(&text_to_draw);
         text.set_scale(16.0);
