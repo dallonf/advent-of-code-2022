@@ -3,7 +3,11 @@ mod draw_utils;
 mod js;
 mod test_algo;
 
-use std::{cell::RefCell, rc::Rc};
+use std::{
+    cell::RefCell,
+    path::{Path, PathBuf},
+    rc::Rc,
+};
 
 use ggez::{
     self,
@@ -43,7 +47,7 @@ impl ggez::event::EventHandler<GameError> for AppState {
         let draw_result = runtime.draw(ctx, &mut canvas);
         let text_to_draw = match draw_result {
             Ok(it) => it,
-            Err(err) => format!("error calling draw(): {:?}", err),
+            Err(err) => format!("error calling Draw(): {:?}", err),
         };
         // TODO: trim this - with backtraces, the text can get so long that it crashes ggez
         let mut text = graphics::Text::new(&text_to_draw);
@@ -64,7 +68,7 @@ impl ggez::event::EventHandler<GameError> for AppState {
 fn main() -> anyhow::Result<()> {
     let mut initial_state = AppState {
         watcher: Watcher::new()?,
-        draw_runtime: DrawRuntime::new("./scripts/puzzles/test_algo/viz.js"),
+        draw_runtime: DrawRuntime::new(&PathBuf::from("./scripts/puzzles/test_algo/viz.lua")),
     };
 
     initial_state
