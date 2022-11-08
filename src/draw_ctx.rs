@@ -1,6 +1,6 @@
-use std::sync::Mutex;
-
+use crate::prelude::*;
 use ggez::{graphics::Canvas, GameError};
+use std::sync::Mutex;
 
 pub struct DrawContext {
     pub draw_fn: Mutex<Option<DrawFn>>,

@@ -3,8 +3,7 @@ mod viz;
 // 2019 Day 1: The Tyranny of the Rocket Equation
 
 use crate::draw_ctx::DrawContext;
-use anyhow::Result;
-use lazy_static::lazy_static;
+use crate::prelude::*;
 use viz::PartTwoViz;
 
 lazy_static! {

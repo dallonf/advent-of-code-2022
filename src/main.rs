@@ -1,13 +1,10 @@
 mod draw_ctx;
 mod draw_utils;
-mod js;
+mod lua;
 mod test_algo;
+mod prelude;
 
-use std::{
-    cell::RefCell,
-    path::{Path, PathBuf},
-    rc::Rc,
-};
+use std::path::PathBuf;
 
 use ggez::{
     self,
@@ -16,9 +13,9 @@ use ggez::{
     graphics::{self, DrawParam},
     ContextBuilder, GameError,
 };
-use js::draw_runtime::DrawRuntime;
-use js::watcher::Watcher;
-use tap::Pipe;
+use lua::draw_runtime::DrawRuntime;
+use lua::watcher::Watcher;
+use prelude::*;
 
 struct AppState {
     draw_runtime: DrawRuntime,

@@ -1,5 +1,5 @@
+use crate::prelude::*;
 use ggez::graphics::Color;
-use lazy_static::lazy_static;
 
 pub const BLACK: Color = Color::BLACK;
 pub const WHITE: Color = Color::WHITE;

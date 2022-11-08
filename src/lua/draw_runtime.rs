@@ -1,30 +1,16 @@
-use anyhow::{anyhow, Error, Result};
-// use deno_core::{
-//     error::AnyError,
-//     op,
-//     url::Url,
-//     v8::{self, Global},
-//     Extension, JsRuntime, ModuleLoader, OpState, Resource,
-// };
+use crate::prelude::*;
 use ggez::{
     glam::Vec2,
     graphics::{self, Canvas, FillOptions},
 };
-use itertools::Itertools;
 use rlua::prelude::*;
 use std::{
-    backtrace::{self, Backtrace},
-    cell::RefCell,
     fmt::Display,
     fs,
     path::{Path, PathBuf},
-    rc::Rc,
     str::FromStr,
     sync::Arc,
 };
-use tap::prelude::*;
-
-use super::module_loader::TrackingModuleLoader;
 
 #[derive(Clone)]
 pub struct InitError(Arc<Error>);
@@ -49,17 +35,6 @@ impl From<Error> for InitError {
     }
 }
 
-// pub enum DrawRuntimeInitResult {
-//     Succeeded(DrawRuntimeData),
-//     Error(InitError, Option<Url>),
-// }
-
-// impl DrawRuntimeInitResult {
-//     fn from_error(err: Error, url: Option<Url>) -> Self {
-//         DrawRuntimeInitResult::Error(err.into(), url)
-//     }
-// }
-
 pub struct DrawRuntime {
     initial_module_path: PathBuf,
     result: Result<DrawRuntimeData, InitError>,
@@ -67,9 +42,6 @@ pub struct DrawRuntime {
 
 pub struct DrawRuntimeData {
     lua: Lua,
-    // tracking_loader: Rc<TrackingModuleLoader>,
-    // draw_fn: v8::Global<v8::Function>,
-    // internal_utils: v8::Global<v8::Object>,
 }
 
 impl DrawRuntime {

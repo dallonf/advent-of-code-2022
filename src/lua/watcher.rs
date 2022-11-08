@@ -1,4 +1,4 @@
-use anyhow::Result;
+use crate::prelude::*;
 use notify::{ReadDirectoryChangesWatcher, RecursiveMode, Watcher as NotifyWatcher};
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
