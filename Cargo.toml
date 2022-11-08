@@ -5,9 +5,6 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
-[profile.dev]
-opt-level = 1
-
 [dependencies]
 ggez = "0.8.1"
 lazy_static = "1.4.0"
@@ -17,7 +14,7 @@ anyhow = { version = "1.0.66", features = ["backtrace"] }
 deno_core = "0.155.0"
 tokio = { version = "1.21.2", features = ["full"] }
 notify = { version = "5.0.0", default-features = false, features = ["macos_kqueue"] }
-rlua = { version = "0.19.4" }
+rlua = { version = "0.19.4", features = ["lua-no-oslib"] }
 
 
 [dev-dependencies]

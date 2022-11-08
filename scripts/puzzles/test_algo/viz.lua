@@ -10,8 +10,8 @@ require("scripts.puzzles.test_algo.rand")
 -- end
 
 function Draw(ctx)
-  for i = 1, 100 do
-    ctx.draw_rectangle(100, 100, 150, 150)
+  for i = 1, 10 do
+    ctx.draw_rectangle(100 + Rand() * 400, 100 +Rand() * 400, 150, 150)
   end
 
   -- print(package.loaded["scripts.puzzles.test_algo.rand"])
