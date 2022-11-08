@@ -10,6 +10,7 @@ use ggez::{
     glam::Vec2,
     graphics::{self, Canvas, FillOptions},
 };
+use itertools::Itertools;
 use rlua::prelude::*;
 use std::{
     backtrace::{self, Backtrace},
@@ -18,6 +19,7 @@ use std::{
     fs,
     path::{Path, PathBuf},
     rc::Rc,
+    str::FromStr,
     sync::Arc,
 };
 use tap::prelude::*;
@@ -99,11 +101,44 @@ impl DrawRuntime {
         }
     }
 
-    pub fn get_loaded_modules(&self) -> Result<Vec<&Path>> {
+    pub fn get_loaded_modules(&self) -> Result<Vec<PathBuf>> {
         match &self.result {
             Ok(DrawRuntimeData { lua }) => {
-                // TODO: more
-                Ok(vec![self.initial_module_path.as_path()])
+                let mut additional_packages = lua.context(|ctx| {
+                    let package = ctx.globals().get::<_, LuaTable>("package")?;
+                    let loaded = package
+                        .get::<_, LuaTable>("loaded")?
+                        .pairs::<String, LuaValue>()
+                        .map(|pair| {
+                            let package_name = pair.unwrap().0;
+
+                            let actual_path: Option<String> = package
+                                .get::<_, LuaFunction>("searchpath")
+                                .unwrap()
+                                .call::<_, LuaValue>((
+                                    package_name,
+                                    package.get::<_, LuaValue>("path").unwrap(),
+                                ))
+                                .unwrap()
+                                .pipe(|it: LuaValue| {
+                                    ctx.coerce_string(it).map_err(|err| anyhow!(err))
+                                })
+                                .unwrap()
+                                .map(|it| it.to_str().map(|it| it.to_owned()))
+                                .transpose()
+                                .unwrap();
+                            actual_path
+                                .map(|it| PathBuf::from_str(&it))
+                                .transpose()
+                                .unwrap()
+                        })
+                        .collect::<Vec<_>>();
+
+                    anyhow::Ok(loaded.into_iter().filter_map(|it| it).collect_vec())
+                })?;
+
+                additional_packages.push(self.initial_module_path.clone());
+                Ok(additional_packages)
             }
             Err(err) => return Err(anyhow!(err.0.clone())),
         }

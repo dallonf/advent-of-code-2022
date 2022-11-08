@@ -28,6 +28,7 @@ struct AppState {
 impl ggez::event::EventHandler<GameError> for AppState {
     fn update(&mut self, _ctx: &mut ggez::Context) -> Result<(), GameError> {
         if self.watcher.is_dirty() {
+            println!("Reloading Lua...");
             self.watcher
                 .stop_watching()
                 .map_err(|err| GameError::CustomError(err.to_string()))?;
@@ -36,6 +37,7 @@ impl ggez::event::EventHandler<GameError> for AppState {
             self.watcher
                 .start_watching(&mut runtime_ref)
                 .map_err(|err| GameError::CustomError(err.to_string()))?;
+            println!("Reloaded!");
         }
         Ok(())
     }

@@ -1,4 +1,4 @@
 function Rand()
-  return 4
+  return 5
   -- return math.random()
 end
