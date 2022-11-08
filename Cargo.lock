@@ -43,7 +43,9 @@ dependencies = [
  "lazy_static",
  "notify",
  "rlua",
+ "serde",
  "tap",
+ "thiserror",
  "tokio",
 ]
 

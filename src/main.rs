@@ -1,10 +1,14 @@
 mod draw_ctx;
 mod draw_utils;
 mod lua;
-mod test_algo;
 mod prelude;
+mod test_algo;
 
-use std::path::PathBuf;
+use std::{
+    any::Any,
+    path::PathBuf,
+    sync::{Arc, Mutex},
+};
 
 use ggez::{
     self,
@@ -20,6 +24,8 @@ use prelude::*;
 struct AppState {
     draw_runtime: DrawRuntime,
     watcher: Watcher,
+    events: Arc<Mutex<Vec<Box<dyn Any>>>>,
+    event_pointer: usize,
 }
 
 impl ggez::event::EventHandler<GameError> for AppState {
@@ -65,7 +71,10 @@ impl ggez::event::EventHandler<GameError> for AppState {
 }
 
 fn main() -> anyhow::Result<()> {
+    let events = Arc::new(Mutex::new(vec![]));
     let mut initial_state = AppState {
+        events: events.clone(),
+        event_pointer: 0,
         watcher: Watcher::new()?,
         draw_runtime: DrawRuntime::new(&PathBuf::from("./scripts/puzzles/test_algo/viz.lua")),
     };
