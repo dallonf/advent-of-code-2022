@@ -6,7 +6,6 @@ mod prelude;
 mod test_algo;
 
 use std::{
-    any::Any,
     path::PathBuf,
     sync::{Arc, Mutex},
     thread,
@@ -17,7 +16,7 @@ use ggez::{
     self,
     conf::{WindowMode, WindowSetup},
     glam::Vec2,
-    graphics::{self, DrawParam},
+    graphics::{self, Color, DrawParam, Rect},
     ContextBuilder, GameError,
 };
 use lua::draw_runtime::DrawRuntime;
@@ -28,7 +27,8 @@ struct AppState {
     draw_runtime: DrawRuntime,
     watcher: Watcher,
     events: EventBus,
-    event_pointer: usize,
+    events_processed: usize,
+    processing_error: Option<Error>,
 }
 
 impl ggez::event::EventHandler<GameError> for AppState {
@@ -44,9 +44,18 @@ impl ggez::event::EventHandler<GameError> for AppState {
                 .start_watching(&mut runtime_ref)
                 .map_err(|err| GameError::CustomError(err.to_string()))?;
             println!("Reloaded!");
-        } else {
+        } else if self.processing_error.is_none() {
             let events = self.events.lock().unwrap();
-            // TODO: handle events here
+            if events.len() > self.events_processed {
+                let unprocessed_events = events.iter().skip(self.events_processed);
+                for event in unprocessed_events {
+                    if let Err(err) = self.draw_runtime.handle_event(event) {
+                        self.processing_error = Some(err);
+                        break;
+                    }
+                    self.events_processed += 1;
+                }
+            }
         }
         Ok(())
     }
@@ -71,6 +80,27 @@ impl ggez::event::EventHandler<GameError> for AppState {
                 .color(draw_utils::BLACK),
         );
 
+        if let Some(processing_error) = &self.processing_error {
+            let size = ctx.gfx.drawable_size();
+            canvas.draw(
+                &graphics::Mesh::new_rectangle(
+                    ctx,
+                    graphics::DrawMode::fill(),
+                    Rect::new(0.0, 0.0, size.0, size.1),
+                    Color::from_rgba(255, 255, 255, 128),
+                )?,
+                DrawParam::default(),
+            );
+            let mut text = graphics::Text::new(&processing_error.to_string());
+            text.set_scale(16.0);
+            canvas.draw(
+                &mut text,
+                DrawParam::default()
+                    .dest(Vec2::new(0.0, 0.0))
+                    .color(draw_utils::RED.to_owned()),
+            );
+        }
+
         canvas.finish(ctx)?;
         Ok(())
     }
@@ -79,10 +109,11 @@ impl ggez::event::EventHandler<GameError> for AppState {
 fn main() -> anyhow::Result<()> {
     let events = Arc::new(Mutex::new(vec![]));
     let mut initial_state = AppState {
-        events: events.clone(),
-        event_pointer: 0,
-        watcher: Watcher::new()?,
         draw_runtime: DrawRuntime::new(&PathBuf::from("./scripts/puzzles/test_algo/viz.lua")),
+        watcher: Watcher::new()?,
+        events: events.clone(),
+        events_processed: 0,
+        processing_error: None,
     };
 
     initial_state

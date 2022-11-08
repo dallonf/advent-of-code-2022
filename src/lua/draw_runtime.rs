@@ -161,7 +161,7 @@ impl DrawRuntime {
         lua.context(|ctx| {
             let handle_fn: Option<LuaFunction> = ctx
                 .globals()
-                .get::<_, LuaValue>("HandleEvent")?
+                .get::<_, LuaValue>("ProcessEvent")?
                 .pipe(|it| {
                     if it.type_name() == "nil" {
                         None
