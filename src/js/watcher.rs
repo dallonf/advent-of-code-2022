@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use notify::{ReadDirectoryChangesWatcher, RecursiveMode, Watcher as NotifyWatcher};
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
@@ -44,21 +44,17 @@ impl Watcher {
     }
 
     pub fn start_watching(&mut self, runtime: &mut DrawRuntime) -> Result<()> {
-        // self.stop_watching()?;
-        // *self.dirty_flag.lock().unwrap() = false;
-        // let loaded_modules = runtime.get_loaded_modules()?;
-        // let loaded_module_paths = loaded_modules
-        //     .into_iter()
-        //     .map(|it| {
-        //         it.to_file_path()
-        //             .map_err(|_| anyhow!("Can't convert {} to path", it))
-        //     })
-        //     .collect::<Result<Vec<_>>>()?;
-        // for module_path in loaded_module_paths.iter() {
-        //     self.watcher
-        //         .watch(module_path.as_path(), RecursiveMode::NonRecursive)?;
-        // }
-        // self.currently_watching = loaded_module_paths;
+        self.stop_watching()?;
+        *self.dirty_flag.lock().unwrap() = false;
+        let loaded_modules = runtime.get_loaded_modules()?;
+        for module_path in loaded_modules.iter() {
+            self.watcher
+                .watch(module_path, RecursiveMode::NonRecursive)?;
+        }
+        self.currently_watching = loaded_modules
+            .into_iter()
+            .map(|it| it.to_path_buf())
+            .collect();
         Ok(())
     }
 }

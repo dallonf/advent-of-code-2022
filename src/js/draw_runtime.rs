@@ -75,25 +75,13 @@ impl DrawRuntime {
         let lua = Lua::new();
         let module_path = module_path.to_path_buf();
         match lua.context(|ctx| {
-            println!("loading runtime...");
-
-            println!("globals: {}", ctx.globals().len()?);
-
-            let print: LuaFunction = ctx.globals().get("print")?;
-            print.call::<_, ()>("hello from rust")?;
-
             ctx.load(include_str!("./runtime.lua"))
                 .set_name("aoc2022:runtime.lua")?
                 .exec()?;
-            println!("loading source...");
             let source = fs::read(&module_path)?.pipe(|it| String::from_utf8(it))?;
-            println!("{}", &source);
-            println!("{}", module_path.to_str().unwrap().to_string());
             ctx.load(&source)
                 .set_name(module_path.to_str().unwrap())?
                 .exec()?;
-            println!("loaded!");
-
             Ok(())
         }) {
             Ok(_) => (),
@@ -111,15 +99,15 @@ impl DrawRuntime {
         }
     }
 
-    // pub fn get_loaded_modules(&self) -> Result<Vec<PathBuf>> {
-    //     match &self.result {
-    //         Ok(DrawRuntimeData { lua }) => {
-    //             // lua.context(f)
-    //             // let loaded_table
-    //         },
-    //         Err(err) => return Err(anyhow!(err.0.clone())),
-    //     }
-    // }
+    pub fn get_loaded_modules(&self) -> Result<Vec<&Path>> {
+        match &self.result {
+            Ok(DrawRuntimeData { lua }) => {
+                // TODO: more
+                Ok(vec![self.initial_module_path.as_path()])
+            }
+            Err(err) => return Err(anyhow!(err.0.clone())),
+        }
+    }
 
     pub fn draw(&mut self, gfx_ctx: &ggez::Context, canvas: &mut Canvas) -> Result<String> {
         let DrawRuntimeData { lua, .. } = match &mut self.result {
