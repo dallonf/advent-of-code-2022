@@ -16,6 +16,7 @@ notify = { version = "5.0.0", default-features = false, features = ["macos_kqueu
 rlua = { version = "0.19.4", features = ["lua-no-oslib"] }
 serde = "1.0.147"
 thiserror = "1.0.37"
+erased-serde = "0.3.23"
 
 
 [dev-dependencies]

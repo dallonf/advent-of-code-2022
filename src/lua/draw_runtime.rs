@@ -1,4 +1,4 @@
-use crate::prelude::*;
+use crate::{framework::Event, prelude::*};
 use ggez::{
     glam::Vec2,
     graphics::{self, Canvas, FillOptions},
@@ -11,6 +11,8 @@ use std::{
     str::FromStr,
     sync::Arc,
 };
+
+use super::serialize::{LuaSerializer, to_lua};
 
 #[derive(Clone)]
 pub struct InitError(Arc<Error>);
@@ -148,6 +150,34 @@ impl DrawRuntime {
             })
         })?;
         Ok(text_result)
+    }
+
+    pub fn handle_event(&mut self, event: &Box<Event>) -> Result<()> {
+        let DrawRuntimeData { lua, .. } = match &mut self.result {
+            Ok(it) => it,
+            Err(err) => return Err(anyhow!(err.0.clone())),
+        };
+
+        lua.context(|ctx| {
+            let handle_fn: Option<LuaFunction> = ctx
+                .globals()
+                .get::<_, LuaValue>("HandleEvent")?
+                .pipe(|it| {
+                    if it.type_name() == "nil" {
+                        None
+                    } else {
+                        Some(LuaFunction::from_lua(it, ctx))
+                    }
+                })
+                .transpose()?;
+            
+            if let Some(handle_fn) = handle_fn {
+                let lua_event = to_lua(ctx, event)?;
+                handle_fn.call(lua_event)?;
+            }
+
+            anyhow::Ok(())
+        })
     }
 
     pub fn restart(&self) -> Self {

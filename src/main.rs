@@ -1,5 +1,6 @@
 mod draw_ctx;
 mod draw_utils;
+mod framework;
 mod lua;
 mod prelude;
 mod test_algo;
@@ -8,8 +9,10 @@ use std::{
     any::Any,
     path::PathBuf,
     sync::{Arc, Mutex},
+    thread,
 };
 
+use framework::{AsyncReportProgress, EventBus};
 use ggez::{
     self,
     conf::{WindowMode, WindowSetup},
@@ -24,7 +27,7 @@ use prelude::*;
 struct AppState {
     draw_runtime: DrawRuntime,
     watcher: Watcher,
-    events: Arc<Mutex<Vec<Box<dyn Any>>>>,
+    events: EventBus,
     event_pointer: usize,
 }
 
@@ -41,6 +44,9 @@ impl ggez::event::EventHandler<GameError> for AppState {
                 .start_watching(&mut runtime_ref)
                 .map_err(|err| GameError::CustomError(err.to_string()))?;
             println!("Reloaded!");
+        } else {
+            let events = self.events.lock().unwrap();
+            // TODO: handle events here
         }
         Ok(())
     }
@@ -95,6 +101,13 @@ fn main() -> anyhow::Result<()> {
         .window_setup(WindowSetup::default().title("Advent of Code 2022"))
         .build()
         .unwrap();
+
+    let thread_events = events.clone();
+    thread::spawn(move || {
+        test_algo::part_two(&AsyncReportProgress {
+            event_bus: thread_events,
+        });
+    });
 
     ggez::event::run(ctx, event_loop, initial_state);
 }

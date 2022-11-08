@@ -1,10 +1,9 @@
-mod viz;
-
 // 2019 Day 1: The Tyranny of the Rocket Equation
 
 use crate::draw_ctx::DrawContext;
+use crate::framework::ReportProgress;
 use crate::prelude::*;
-use viz::PartTwoViz;
+use serde::Serialize;
 
 lazy_static! {
     static ref PUZZLE_INPUT: Vec<i64> = include_str!("./test_input.txt")
@@ -21,21 +20,18 @@ pub fn part_one() -> i64 {
     PUZZLE_INPUT.iter().map(|&num| fuel_amount(num)).sum()
 }
 
-pub trait PartTwoProgress {
-    fn new_part(&mut self, mass: i64);
-    fn additional_fuel(&mut self, mass: i64);
+#[derive(Serialize)]
+pub enum PartTwoProgress {
+    NewPart { mass: i64 },
+    AdditionalFuel { mass: i64 },
 }
 
-struct NoOpPartTwoProgress;
-impl PartTwoProgress for NoOpPartTwoProgress {
-    fn new_part(&mut self, _mass: i64) {}
-    fn additional_fuel(&mut self, _mass: i64) {}
-}
-
-pub fn recursive_fuel_amount(mass: i64, progress: &mut impl PartTwoProgress) -> i64 {
+pub fn recursive_fuel_amount(mass: i64, progress: &impl ReportProgress) -> i64 {
     let required_fuel = fuel_amount(mass);
     if required_fuel > 0 {
-        progress.additional_fuel(required_fuel);
+        progress.report_progress(PartTwoProgress::AdditionalFuel {
+            mass: required_fuel,
+        });
         let additional_fuel = recursive_fuel_amount(required_fuel, progress);
         return required_fuel + additional_fuel;
     } else {
@@ -43,19 +39,14 @@ pub fn recursive_fuel_amount(mass: i64, progress: &mut impl PartTwoProgress) -> 
     };
 }
 
-pub fn part_two(progress: &mut impl PartTwoProgress) -> i64 {
+pub fn part_two(progress: &impl ReportProgress) -> i64 {
     PUZZLE_INPUT
         .iter()
         .map(|&num| {
-            progress.new_part(num);
+            progress.report_progress(PartTwoProgress::NewPart { mass: num });
             recursive_fuel_amount(num, progress)
         })
         .sum()
-}
-
-pub fn part_two_viz(ctx: &'static DrawContext) -> Result<String> {
-    let mut progress = PartTwoViz::new(ctx);
-    Ok(part_two(&mut progress).to_string())
 }
 
 #[cfg(test)]
@@ -87,19 +78,21 @@ mod part_one_test {
 
 #[cfg(test)]
 mod part_two_test {
+    use crate::framework::NoOpReportProgress;
+
     use super::*;
     #[test]
     fn test_cases() {
-        assert_eq!(recursive_fuel_amount(14, &mut NoOpPartTwoProgress), 2);
-        assert_eq!(recursive_fuel_amount(1969, &mut NoOpPartTwoProgress), 966);
+        assert_eq!(recursive_fuel_amount(14, &mut NoOpReportProgress), 2);
+        assert_eq!(recursive_fuel_amount(1969, &mut NoOpReportProgress), 966);
         assert_eq!(
-            recursive_fuel_amount(100756, &mut NoOpPartTwoProgress),
+            recursive_fuel_amount(100756, &mut NoOpReportProgress),
             50346
         );
     }
     #[test]
     fn part_two_test() {
-        let result: i64 = part_two(&mut NoOpPartTwoProgress);
+        let result: i64 = part_two(&mut NoOpReportProgress);
         assert_eq!(result, 5088280);
     }
 }
