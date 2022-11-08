@@ -43,6 +43,23 @@ impl ggez::event::EventHandler<GameError> for AppState {
             self.watcher
                 .start_watching(&mut runtime_ref)
                 .map_err(|err| GameError::CustomError(err.to_string()))?;
+
+            self.events_processed = 0;
+            self.processing_error = None;
+
+            let events = self.events.lock().unwrap();
+            if events.len() > 0 {
+                println!("Replaying progress events...");
+                for event in events.iter() {
+                    if let Err(err) = self.draw_runtime.handle_event(event) {
+                        self.processing_error = Some(err);
+                        break;
+                    }
+                    self.events_processed += 1;
+                }
+                println!("Progress events done!");
+            }
+
             println!("Reloaded!");
         } else if self.processing_error.is_none() {
             let events = self.events.lock().unwrap();
@@ -87,16 +104,18 @@ impl ggez::event::EventHandler<GameError> for AppState {
                     ctx,
                     graphics::DrawMode::fill(),
                     Rect::new(0.0, 0.0, size.0, size.1),
-                    Color::from_rgba(255, 255, 255, 128),
+                    Color::from_rgba(255, 255, 255, 200),
                 )?,
                 DrawParam::default(),
             );
-            let mut text = graphics::Text::new(&processing_error.to_string());
+            let mut text = graphics::Text::new(
+                &("Error while processing event:\n".to_string() + &processing_error.to_string()),
+            );
             text.set_scale(16.0);
             canvas.draw(
                 &mut text,
                 DrawParam::default()
-                    .dest(Vec2::new(0.0, 0.0))
+                    .dest(Vec2::new(8.0, 8.0))
                     .color(draw_utils::RED.to_owned()),
             );
         }

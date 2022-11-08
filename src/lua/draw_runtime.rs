@@ -12,7 +12,7 @@ use std::{
     sync::Arc,
 };
 
-use super::serialize::{LuaSerializer, to_lua};
+use super::serialize::to_lua;
 
 #[derive(Clone)]
 pub struct InitError(Arc<Error>);
@@ -114,7 +114,7 @@ impl DrawRuntime {
                 additional_packages.push(self.initial_module_path.clone());
                 Ok(additional_packages)
             }
-            Err(err) => return Err(anyhow!(err.0.clone())),
+            Err(_) => Ok(vec![self.initial_module_path.clone()]),
         }
     }
 
@@ -170,7 +170,7 @@ impl DrawRuntime {
                     }
                 })
                 .transpose()?;
-            
+
             if let Some(handle_fn) = handle_fn {
                 let lua_event = to_lua(ctx, event)?;
                 handle_fn.call(lua_event)?;
