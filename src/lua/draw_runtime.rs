@@ -9,7 +9,7 @@ use std::{
     fs,
     path::{Path, PathBuf},
     str::FromStr,
-    sync::Arc,
+    sync::Arc, cell::RefCell,
 };
 
 use super::serialize::to_lua;
@@ -125,10 +125,11 @@ impl DrawRuntime {
         };
 
         let text_result = lua.context(|ctx| {
+            let canvas_cell = RefCell::new(canvas);
             ctx.scope(|scope| {
                 let draw_ctx = ctx.create_table()?;
                 draw_ctx.set(
-                    "fill_rectangle",
+                    "rectangle_fill",
                     scope.create_function_mut(
                         |_, (x, y, width, height, color): (f32, f32, f32, f32, String)| {
                             let color = str_to_color(&color).ok_or_else(|| {
@@ -136,12 +137,39 @@ impl DrawRuntime {
                             })?;
                             let shape = graphics::Mesh::new_rectangle(
                                 gfx_ctx,
-                                graphics::DrawMode::Fill(FillOptions::default()),
+                                graphics::DrawMode::fill(),
                                 graphics::Rect::new(0.0, 0.0, width, height),
                                 color,
                             )
                             .map_err(|err| LuaError::external(err))?;
-                            canvas.draw(&shape, Vec2::new(x, y));
+                            canvas_cell.borrow_mut().draw(&shape, Vec2::new(x, y));
+                            Ok(())
+                        },
+                    )?,
+                )?;
+                draw_ctx.set(
+                    "rectangle_outline",
+                    scope.create_function_mut(
+                        |_,
+                         (x, y, width, height, color, line_width): (
+                            f32,
+                            f32,
+                            f32,
+                            f32,
+                            String,
+                            f32,
+                        )| {
+                            let color = str_to_color(&color).ok_or_else(|| {
+                                LuaError::external(anyhow!("Invalid color: {color}"))
+                            })?;
+                            let shape = graphics::Mesh::new_rectangle(
+                                gfx_ctx,
+                                graphics::DrawMode::stroke(line_width),
+                                graphics::Rect::new(0.0, 0.0, width, height),
+                                color,
+                            )
+                            .map_err(|err| LuaError::external(err))?;
+                            canvas_cell.borrow_mut().draw(&shape, Vec2::new(x, y));
                             Ok(())
                         },
                     )?,
