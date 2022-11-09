@@ -1,15 +1,21 @@
-use crate::{draw_utils::str_to_color, framework::Event, prelude::*};
+use crate::{
+    draw_utils::{self, str_to_color},
+    framework::Event,
+    prelude::*,
+};
 use ggez::{
     glam::Vec2,
-    graphics::{self, Canvas, FillOptions},
+    graphics::{self, Canvas, Color, DrawParam, FillOptions},
 };
 use rlua::prelude::*;
+use serde::Deserialize;
 use std::{
+    cell::RefCell,
     fmt::Display,
     fs,
     path::{Path, PathBuf},
     str::FromStr,
-    sync::Arc, cell::RefCell,
+    sync::Arc,
 };
 
 use super::serialize::to_lua;
@@ -170,6 +176,101 @@ impl DrawRuntime {
                             )
                             .map_err(|err| LuaError::external(err))?;
                             canvas_cell.borrow_mut().draw(&shape, Vec2::new(x, y));
+                            Ok(())
+                        },
+                    )?,
+                )?;
+                #[derive(Debug)]
+                enum VAlign {
+                    Top,
+                    Middle,
+                    Bottom,
+                }
+                impl<'lua> FromLua<'lua> for VAlign {
+                    fn from_lua(
+                        lua_value: LuaValue<'lua>,
+                        lua: LuaContext<'lua>,
+                    ) -> LuaResult<Self> {
+                        let as_str = String::from_lua(lua_value, lua)?;
+                        match as_str.as_str() {
+                            "top" => VAlign::Top,
+                            "middle" => VAlign::Middle,
+                            "bottom" => VAlign::Bottom,
+                            other => {
+                                return Err(LuaError::FromLuaConversionError {
+                                    from: "string",
+                                    to: "VAlign",
+                                    message: Some(format!("Unexpected value: {other}")),
+                                })
+                            }
+                        }
+                        .pipe(Ok)
+                    }
+                }
+                #[derive(Debug)]
+                enum HAlign {
+                    Left,
+                    Middle,
+                    Right,
+                }
+                impl<'lua> FromLua<'lua> for HAlign {
+                    fn from_lua(
+                        lua_value: LuaValue<'lua>,
+                        lua: LuaContext<'lua>,
+                    ) -> LuaResult<Self> {
+                        let as_str = String::from_lua(lua_value, lua)?;
+                        match as_str.as_str() {
+                            "left" => HAlign::Left,
+                            "middle" => HAlign::Middle,
+                            "right" => HAlign::Right,
+                            other => {
+                                return Err(LuaError::FromLuaConversionError {
+                                    from: "string",
+                                    to: "HAlign",
+                                    message: Some(format!("Unexpected value: {other}")),
+                                })
+                            }
+                        }
+                        .pipe(Ok)
+                    }
+                }
+                #[derive(Debug, Default)]
+                struct TextOpts {
+                    size: Option<f32>,
+                    v_align: Option<VAlign>,
+                    h_align: Option<HAlign>,
+                    color: Option<Color>,
+                }
+                impl<'lua> FromLua<'lua> for TextOpts {
+                    fn from_lua(
+                        lua_value: LuaValue<'lua>,
+                        lua: LuaContext<'lua>,
+                    ) -> LuaResult<Self> {
+                        let as_table = LuaTable::from_lua(lua_value, lua)?;
+                        TextOpts {
+                            size: as_table.get("size")?,
+                            v_align: as_table.get("v_align")?,
+                            h_align: as_table.get("h_align")?,
+                            color: as_table
+                                .get::<_, Option<String>>("color")?
+                                .and_then(|it| str_to_color(&it)),
+                        }
+                        .pipe(Ok)
+                    }
+                }
+                draw_ctx.set(
+                    "text",
+                    scope.create_function_mut(
+                        |ctx, (text, x, y, opts): (String, f32, f32, LuaValue)| {
+                            let opts = Option::<TextOpts>::from_lua(opts, ctx)?.unwrap_or_default();
+                            let mut text = graphics::Text::new(&text);
+                            text.set_scale(opts.size.unwrap_or(16.0));
+                            canvas_cell.borrow_mut().draw(
+                                &mut text,
+                                DrawParam::default()
+                                    .dest(Vec2::new(x, y))
+                                    .color(opts.color.unwrap_or(draw_utils::BLACK)),
+                            );
                             Ok(())
                         },
                     )?,
