@@ -17,6 +17,7 @@ rlua = { version = "0.19.4", features = ["lua-no-oslib"] }
 serde = "1.0.147"
 thiserror = "1.0.37"
 erased-serde = "0.3.23"
+hex_color = "2.0.0"
 
 
 [dev-dependencies]
