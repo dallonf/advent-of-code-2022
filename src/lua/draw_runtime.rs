@@ -8,7 +8,6 @@ use ggez::{
     graphics::{self, Canvas, Color, DrawParam, FillOptions},
 };
 use rlua::prelude::*;
-use serde::Deserialize;
 use std::{
     cell::RefCell,
     fmt::Display,
@@ -124,13 +123,13 @@ impl DrawRuntime {
         }
     }
 
-    pub fn draw(&mut self, gfx_ctx: &ggez::Context, canvas: &mut Canvas) -> Result<String> {
+    pub fn draw(&mut self, gfx_ctx: &ggez::Context, canvas: &mut Canvas) -> Result<()> {
         let DrawRuntimeData { lua, .. } = match &mut self.result {
             Ok(it) => it,
             Err(err) => return Err(anyhow!(err.0.clone())),
         };
 
-        let text_result = lua.context(|ctx| {
+        lua.context(|ctx| {
             let canvas_cell = RefCell::new(canvas);
             ctx.scope(|scope| {
                 let draw_ctx = ctx.create_table()?;
@@ -277,11 +276,11 @@ impl DrawRuntime {
                 )?;
 
                 let draw_fn: LuaFunction = ctx.globals().get("Draw")?;
-                let text_result: String = draw_fn.call(draw_ctx)?;
-                anyhow::Ok(text_result)
+                draw_fn.call(draw_ctx)?;
+                anyhow::Ok(())
             })
         })?;
-        Ok(text_result)
+        Ok(())
     }
 
     pub fn handle_event(&mut self, event: &Box<Event>) -> Result<()> {

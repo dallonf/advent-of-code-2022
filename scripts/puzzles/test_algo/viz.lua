@@ -39,6 +39,4 @@ function Draw(ctx)
     end
     ctx.text(header, 8, y_offset, { size = TEXT_HEIGHT - 2 })
   end
-
-  return ""
 end

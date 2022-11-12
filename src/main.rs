@@ -82,22 +82,15 @@ impl ggez::event::EventHandler<GameError> for AppState {
         let mut canvas = graphics::Canvas::from_frame(ctx, draw_utils::WHITE);
 
         let draw_result = runtime.draw(ctx, &mut canvas);
-        let text_to_draw = match draw_result {
-            Ok(it) => it,
-            Err(err) => format!("error calling Draw(): {:?}", err),
-        };
-        // TODO: trim this - with backtraces, the text can get so long that it crashes ggez
-        let mut text = graphics::Text::new(&text_to_draw);
+        let draw_error = draw_result.err();
+        let error_text = self
+            .processing_error
+            .as_ref()
+            .map(|it| "Error while processing event:\n".to_string() + &it.to_string())
+            .or(draw_error.map(|it| "Error in Draw():\n".to_string() + &it.to_string()));
 
-        text.set_scale(16.0);
-        canvas.draw(
-            &mut text,
-            DrawParam::default()
-                .dest(Vec2::new(8.0, 8.0))
-                .color(draw_utils::BLACK),
-        );
-
-        if let Some(processing_error) = &self.processing_error {
+        if let Some(error_text) = error_text {
+            // TODO: trim this - with backtraces, the text can get so long that it crashes ggez
             let size = ctx.gfx.drawable_size();
             canvas.draw(
                 &graphics::Mesh::new_rectangle(
@@ -108,9 +101,7 @@ impl ggez::event::EventHandler<GameError> for AppState {
                 )?,
                 DrawParam::default(),
             );
-            let mut text = graphics::Text::new(
-                &("Error while processing event:\n".to_string() + &processing_error.to_string()),
-            );
+            let mut text = graphics::Text::new(error_text);
             text.set_scale(16.0);
             canvas.draw(
                 &mut text,
