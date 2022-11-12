@@ -18,25 +18,34 @@ local ROW_HEIGHT = BAR_HEIGHT + TEXT_HEIGHT
 local MASS_PER_PIXEL = 0.004
 
 function Draw(ctx)
+  local y_scroll = 0
+  local total_height = #parts * ROW_HEIGHT
+  if total_height > ctx.height then
+    y_scroll = total_height - ctx.height + 8
+  end
+
   for i, part in ipairs(parts) do
     local offset = i - 1
-    local y_offset = offset * ROW_HEIGHT
-    local mass = math.tointeger(part.initial_mass)
-    ctx.rectangle_fill(0, y_offset + TEXT_HEIGHT, mass * MASS_PER_PIXEL, BAR_HEIGHT, "red")
-    local x_cursor = mass * MASS_PER_PIXEL
-    local header = "" .. mass
-    local total = mass
-    for i_additional, additional in ipairs(part.additional) do
-      local color = i_additional % 2 == 0 and "red" or "green"
-      local width = additional * MASS_PER_PIXEL
-      ctx.rectangle_fill(x_cursor, y_offset + TEXT_HEIGHT, width, BAR_HEIGHT, color)
-      x_cursor = x_cursor + width
-      header = header .. " + " .. math.tointeger(additional)
-      total = total + additional
+    local y_offset = -y_scroll + offset * ROW_HEIGHT
+
+    if y_offset > 0 - ROW_HEIGHT then
+      local mass = math.tointeger(part.initial_mass)
+      ctx.rectangle_fill(0, y_offset + TEXT_HEIGHT, mass * MASS_PER_PIXEL, BAR_HEIGHT, "red")
+      local x_cursor = mass * MASS_PER_PIXEL
+      local header = "" .. mass
+      local total = mass
+      for i_additional, additional in ipairs(part.additional) do
+        local color = i_additional % 2 == 0 and "red" or "green"
+        local width = additional * MASS_PER_PIXEL
+        ctx.rectangle_fill(x_cursor, y_offset + TEXT_HEIGHT, width, BAR_HEIGHT, color)
+        x_cursor = x_cursor + width
+        header = header .. " + " .. math.tointeger(additional)
+        total = total + additional
+      end
+      if #part.additional > 0 then
+        header = header .. " = " .. math.tointeger(total)
+      end
+      ctx.text(header, 8, y_offset, { size = TEXT_HEIGHT - 2 })
     end
-    if #part.additional > 0 then
-      header = header .. " = " .. math.tointeger(total)
-    end
-    ctx.text(header, 8, y_offset, { size = TEXT_HEIGHT - 2 })
   end
 end

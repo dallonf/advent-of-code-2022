@@ -274,6 +274,9 @@ impl DrawRuntime {
                         },
                     )?,
                 )?;
+                let size = gfx_ctx.gfx.drawable_size();
+                draw_ctx.set("width", size.0)?;
+                draw_ctx.set("height", size.1)?;
 
                 let draw_fn: LuaFunction = ctx.globals().get("Draw")?;
                 draw_fn.call(draw_ctx)?;
