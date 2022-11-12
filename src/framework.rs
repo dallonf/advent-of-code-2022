@@ -1,17 +1,16 @@
-use crate::prelude::*;
 use erased_serde::Serialize;
-use std::sync::{Arc, Mutex};
+use std::sync::mpsc::{Sender};
 
 pub trait ReportProgress {
     fn report_progress(&self, data: impl Serialize + Send + 'static) -> ();
 }
 
 pub struct AsyncReportProgress {
-    pub event_bus: EventBus,
+    pub sender: Sender<Box<Event>>,
 }
 impl ReportProgress for AsyncReportProgress {
     fn report_progress(&self, data: impl Serialize + Send + 'static) -> () {
-        self.event_bus.lock().unwrap().push(Box::new(data))
+        self.sender.send(Box::new(data)).unwrap();
     }
 }
 
@@ -21,4 +20,3 @@ impl ReportProgress for NoOpReportProgress {
 }
 
 pub type Event = dyn Serialize + Send;
-pub type EventBus = Arc<Mutex<Vec<Box<Event>>>>;

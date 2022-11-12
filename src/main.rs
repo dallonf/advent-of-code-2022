@@ -7,11 +7,11 @@ mod test_algo;
 
 use std::{
     path::PathBuf,
-    sync::{Arc, Mutex},
+    sync::mpsc::{self, Receiver},
     thread,
 };
 
-use framework::{AsyncReportProgress, EventBus};
+use framework::{AsyncReportProgress, Event};
 use ggez::{
     self,
     conf::{WindowMode, WindowSetup},
@@ -26,8 +26,8 @@ use prelude::*;
 struct AppState {
     draw_runtime: DrawRuntime,
     watcher: Watcher,
-    events: EventBus,
-    events_processed: usize,
+    event_receiver: Receiver<Box<Event>>,
+    events: Vec<Box<Event>>,
     processing_error: Option<Error>,
 }
 
@@ -44,34 +44,40 @@ impl ggez::event::EventHandler<GameError> for AppState {
                 .start_watching(&mut runtime_ref)
                 .map_err(|err| GameError::CustomError(err.to_string()))?;
 
-            self.events_processed = 0;
             self.processing_error = None;
 
-            let events = self.events.lock().unwrap();
-            if events.len() > 0 {
+            if self.events.len() > 0 {
                 println!("Replaying progress events...");
-                for event in events.iter() {
+                for event in self.events.iter() {
                     if let Err(err) = self.draw_runtime.handle_event(event) {
                         self.processing_error = Some(err);
                         break;
                     }
-                    self.events_processed += 1;
                 }
                 println!("Progress events done!");
             }
 
             println!("Reloaded!");
         } else if self.processing_error.is_none() {
-            let events = self.events.lock().unwrap();
-            if events.len() > self.events_processed {
-                let unprocessed_events = events.iter().skip(self.events_processed);
-                for event in unprocessed_events {
-                    if let Err(err) = self.draw_runtime.handle_event(event) {
-                        self.processing_error = Some(err);
-                        break;
-                    }
-                    self.events_processed += 1;
+            let mut new_events = vec![];
+            // read until the queue is empty
+            // TODO: or maybe until frame budget is exceeded
+            loop {
+                let new_event = self.event_receiver.try_recv().ok();
+                if let Some(new_event) = new_event {
+                    new_events.push(new_event);
+                } else {
+                    break;
                 }
+            }
+
+            for new_event in new_events {
+                if self.processing_error.is_none() {
+                    if let Err(err) = self.draw_runtime.handle_event(&new_event) {
+                        self.processing_error = Some(err);
+                    }
+                }
+                self.events.push(new_event);
             }
         }
         Ok(())
@@ -117,12 +123,12 @@ impl ggez::event::EventHandler<GameError> for AppState {
 }
 
 fn main() -> anyhow::Result<()> {
-    let events = Arc::new(Mutex::new(vec![]));
+    let (event_sender, event_receiver) = mpsc::channel::<Box<framework::Event>>();
     let mut initial_state = AppState {
         draw_runtime: DrawRuntime::new(&PathBuf::from("./scripts/puzzles/test_algo/viz.lua")),
         watcher: Watcher::new()?,
-        events: events.clone(),
-        events_processed: 0,
+        event_receiver,
+        events: vec![],
         processing_error: None,
     };
 
@@ -143,10 +149,9 @@ fn main() -> anyhow::Result<()> {
         .build()
         .unwrap();
 
-    let thread_events = events.clone();
     thread::spawn(move || {
         test_algo::part_two(&AsyncReportProgress {
-            event_bus: thread_events,
+            sender: event_sender,
         });
     });
 
