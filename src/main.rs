@@ -1,4 +1,3 @@
-mod draw_ctx;
 mod draw_utils;
 mod framework;
 mod load_algorithm;

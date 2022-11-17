@@ -5,7 +5,7 @@ use crate::{
 };
 use ggez::{
     glam::Vec2,
-    graphics::{self, Canvas, Color, DrawParam, FillOptions},
+    graphics::{self, Canvas, Color, DrawParam},
 };
 use rlua::prelude::*;
 use std::{
@@ -318,30 +318,5 @@ impl DrawRuntime {
 
     pub fn restart(&self) -> Self {
         Self::new(&self.initial_module_path)
-    }
-
-    fn create_lua_draw_ctx<'lua: 'scope, 'scope>(
-        ctx: LuaContext<'lua>,
-        scope: &'scope mut LuaScope<'lua, 'scope>,
-        gfx_ctx: &'scope ggez::Context,
-        canvas: &'scope mut ggez::graphics::Canvas,
-    ) -> Result<LuaTable<'lua>, Error> {
-        let draw_ctx = ctx.create_table()?;
-        draw_ctx.set(
-            "fill_rectangle",
-            scope.create_function_mut(|_, (x, y, width, height): (f32, f32, f32, f32)| {
-                let shape = graphics::Mesh::new_rectangle(
-                    gfx_ctx,
-                    graphics::DrawMode::Fill(FillOptions::default()),
-                    graphics::Rect::new(0.0, 0.0, width, height),
-                    graphics::Color::BLACK,
-                )
-                .map_err(|err| LuaError::external(err))?;
-                canvas.draw(&shape, Vec2::new(x, y));
-                Ok(())
-            })?,
-        )?;
-
-        Ok(draw_ctx)
     }
 }
