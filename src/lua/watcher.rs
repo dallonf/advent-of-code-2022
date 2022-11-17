@@ -1,6 +1,7 @@
 use crate::prelude::*;
 use notify::{ReadDirectoryChangesWatcher, RecursiveMode, Watcher as NotifyWatcher};
-use std::path::PathBuf;
+use std::borrow::Cow;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
 use super::draw_runtime::DrawRuntime;
@@ -48,8 +49,10 @@ impl Watcher {
         *self.dirty_flag.lock().unwrap() = false;
         let loaded_modules = runtime.get_loaded_modules()?;
         for module_path in loaded_modules.iter() {
+            let watch_path = get_closest_existing_path(&module_path)?;
+
             self.watcher
-                .watch(module_path, RecursiveMode::NonRecursive)?;
+                .watch(&watch_path, RecursiveMode::NonRecursive)?;
         }
         self.currently_watching = loaded_modules
             .into_iter()
@@ -57,4 +60,20 @@ impl Watcher {
             .collect();
         Ok(())
     }
+}
+
+fn get_closest_existing_path(module_path: &Path) -> Result<Cow<Path>> {
+    let mut current = Cow::Borrowed(module_path);
+    while !current.exists() {
+        current = current
+            .parent()
+            .ok_or_else(|| {
+                anyhow!(
+                    "Can't watch {} because no part of this path exists",
+                    module_path.to_string_lossy()
+                )
+            })?
+            .pipe(|it| Cow::Owned(it.to_owned()));
+    }
+    Ok(current)
 }

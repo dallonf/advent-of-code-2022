@@ -2,6 +2,8 @@
 name = "advent-of-code-2022"
 version = "0.1.0"
 edition = "2021"
+authors = ["Dallon Feldner"]
+description = "Framework for Advent of Code 2022"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -18,6 +20,7 @@ serde = "1.0.147"
 thiserror = "1.0.37"
 erased-serde = "0.3.23"
 hex_color = "2.0.0"
+clap = { version = "4.0.26", features=["derive"] }
 
 
 [dev-dependencies]

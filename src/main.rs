@@ -1,17 +1,18 @@
 mod draw_ctx;
 mod draw_utils;
 mod framework;
+mod load_algorithm;
 mod lua;
 mod prelude;
-mod test_algo;
+mod puzzles;
 
 use std::{
-    path::PathBuf,
     sync::mpsc::{self, Receiver},
     thread,
 };
 
-use framework::{AsyncReportProgress, Event};
+use clap::Parser;
+use framework::{AsyncReportProgress, Event, ReportProgress};
 use ggez::{
     self,
     conf::{WindowMode, WindowSetup},
@@ -122,10 +123,20 @@ impl ggez::event::EventHandler<GameError> for AppState {
     }
 }
 
+#[derive(clap::Parser, Debug)]
+#[command(author, version, about)]
+struct Args {
+    day: String,
+    part: String,
+}
+
 fn main() -> anyhow::Result<()> {
+    let args = Args::parse();
+    let algorithm = load_algorithm::load(&args.day, &args.part)?;
+
     let (event_sender, event_receiver) = mpsc::channel::<Box<framework::Event>>();
     let mut initial_state = AppState {
-        draw_runtime: DrawRuntime::new(&PathBuf::from("./scripts/puzzles/test_algo/viz.lua")),
+        draw_runtime: algorithm.draw_runtime,
         watcher: Watcher::new()?,
         event_receiver,
         events: vec![],
@@ -150,9 +161,10 @@ fn main() -> anyhow::Result<()> {
         .unwrap();
 
     thread::spawn(move || {
-        test_algo::part_two(&AsyncReportProgress {
+        let report_progress: Box<dyn ReportProgress> = Box::new(AsyncReportProgress {
             sender: event_sender,
         });
+        (algorithm.thread_func)(&report_progress);
     });
 
     ggez::event::run(ctx, event_loop, initial_state);

@@ -1,6 +1,5 @@
 // 2019 Day 1: The Tyranny of the Rocket Equation
 
-use crate::draw_ctx::DrawContext;
 use crate::framework::ReportProgress;
 use crate::prelude::*;
 use serde::Serialize;
@@ -29,9 +28,9 @@ pub enum PartTwoProgress {
 pub fn recursive_fuel_amount(mass: i64, progress: &impl ReportProgress) -> i64 {
     let required_fuel = fuel_amount(mass);
     if required_fuel > 0 {
-        progress.report_progress(PartTwoProgress::AdditionalFuel {
+        progress.report_progress(Box::new(PartTwoProgress::AdditionalFuel {
             mass: required_fuel,
-        });
+        }));
         let additional_fuel = recursive_fuel_amount(required_fuel, progress);
         return required_fuel + additional_fuel;
     } else {
@@ -43,7 +42,7 @@ pub fn part_two(progress: &impl ReportProgress) -> i64 {
     PUZZLE_INPUT
         .iter()
         .map(|&num| {
-            progress.report_progress(PartTwoProgress::NewPart { mass: num });
+            progress.report_progress(Box::new(PartTwoProgress::NewPart { mass: num }));
             recursive_fuel_amount(num, progress)
         })
         .sum()
