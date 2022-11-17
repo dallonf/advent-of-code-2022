@@ -18,7 +18,8 @@ pub fn load(day: &str, part: &str) -> Result<Algorithm> {
         (_, _) => bail!("Couldn't find {day} {part}"),
     };
 
-    let file_path = Path::new("scripts/puzzles")
+    let file_path = Path::new("scripts")
+        .join("puzzles")
         .join(day)
         .join(format!("{part}.lua"));
 

@@ -7,7 +7,7 @@ pub trait ReportProgress {
 
 impl ReportProgress for Box<dyn ReportProgress> {
     fn report_progress(&self, data: Box<dyn Serialize + Send>) -> () {
-        self.report_progress(data)
+        self.as_ref().report_progress(data)
     }
 }
 

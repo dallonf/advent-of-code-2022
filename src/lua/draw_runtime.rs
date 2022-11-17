@@ -59,7 +59,9 @@ impl DrawRuntime {
             ctx.load(include_str!("./runtime.lua"))
                 .set_name("aoc2022:runtime.lua")?
                 .exec()?;
-            let source = fs::read(&module_path)?.pipe(|it| String::from_utf8(it))?;
+            let source = fs::read(&module_path)
+                .map_err(|_| anyhow!("Can't find a file at {}", module_path.to_string_lossy()))?
+                .pipe(|it| String::from_utf8(it))?;
             ctx.load(&source)
                 .set_name(module_path.to_str().unwrap())?
                 .exec()?;
