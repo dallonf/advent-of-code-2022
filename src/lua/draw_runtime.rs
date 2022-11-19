@@ -238,8 +238,8 @@ impl DrawRuntime {
                 #[derive(Debug, Default)]
                 struct TextOpts {
                     size: Option<f32>,
-                    v_align: Option<VAlign>,
-                    h_align: Option<HAlign>,
+                    // v_align: Option<VAlign>,
+                    // h_align: Option<HAlign>,
                     color: Option<Color>,
                 }
                 impl<'lua> FromLua<'lua> for TextOpts {
@@ -250,8 +250,8 @@ impl DrawRuntime {
                         let as_table = LuaTable::from_lua(lua_value, lua)?;
                         TextOpts {
                             size: as_table.get("size")?,
-                            v_align: as_table.get("v_align")?,
-                            h_align: as_table.get("h_align")?,
+                            // v_align: as_table.get("v_align")?,
+                            // h_align: as_table.get("h_align")?,
                             color: as_table
                                 .get::<_, Option<String>>("color")?
                                 .and_then(|it| str_to_color(&it)),
