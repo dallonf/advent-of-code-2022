@@ -1,5 +1,5 @@
 use crate::prelude::*;
-use notify::{ReadDirectoryChangesWatcher, RecursiveMode, Watcher as NotifyWatcher};
+use notify::{RecommendedWatcher, RecursiveMode, Watcher as WatcherTrait};
 use std::borrow::Cow;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
@@ -8,7 +8,7 @@ use super::draw_runtime::DrawRuntime;
 
 pub struct Watcher {
     dirty_flag: Arc<Mutex<bool>>,
-    watcher: ReadDirectoryChangesWatcher,
+    watcher: RecommendedWatcher,
     currently_watching: Vec<PathBuf>,
 }
 
