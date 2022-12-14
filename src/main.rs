@@ -10,8 +10,8 @@ use std::{
     thread,
 };
 
-use clap::Parser;
-use framework::{AsyncReportProgress, Event, ReportProgress};
+use clap::{arg, Parser};
+use framework::{AsyncReportProgress, Event, NoOpReportProgress, ReportProgress};
 use ggez::{
     self,
     conf::{WindowMode, WindowSetup},
@@ -127,11 +127,20 @@ impl ggez::event::EventHandler<GameError> for AppState {
 struct Args {
     day: String,
     part: String,
+    #[arg(long)]
+    no_window: bool,
 }
 
 fn main() -> anyhow::Result<()> {
     let args = Args::parse();
     let algorithm = load_algorithm::load(&args.day, &args.part)?;
+
+    if args.no_window {
+        let report_progress: Box<dyn ReportProgress> = Box::new(NoOpReportProgress);
+        let result = (algorithm.thread_func)(&report_progress);
+        println!("Result: {result}");
+        return Ok(());
+    }
 
     let (event_sender, event_receiver) = mpsc::channel::<Box<framework::Event>>();
     let mut initial_state = AppState {
