@@ -19,6 +19,7 @@ use ggez::{
     graphics::{self, Color, DrawParam, Rect},
     ContextBuilder, GameError,
 };
+use load_algorithm::ThreadFunc;
 use lua::draw_runtime::DrawRuntime;
 use lua::watcher::Watcher;
 use prelude::*;
@@ -131,14 +132,21 @@ struct Args {
     no_window: bool,
 }
 
+fn execute_and_print(thread_func: &ThreadFunc, report_progress: &Box<dyn ReportProgress>) {
+    let result = thread_func(report_progress);
+    match result {
+        Ok(result) => println!("Result: {result}"),
+        Err(err) => eprintln!("Error: {err}"),
+    }
+}
+
 fn main() -> anyhow::Result<()> {
     let args = Args::parse();
     let algorithm = load_algorithm::load(&args.day, &args.part)?;
 
     if args.no_window {
         let report_progress: Box<dyn ReportProgress> = Box::new(NoOpReportProgress);
-        let result = (algorithm.thread_func)(&report_progress);
-        println!("Result: {result}");
+        execute_and_print(&algorithm.thread_func, &report_progress);
         return Ok(());
     }
 
@@ -172,8 +180,7 @@ fn main() -> anyhow::Result<()> {
         let report_progress: Box<dyn ReportProgress> = Box::new(AsyncReportProgress {
             sender: event_sender,
         });
-        let result = (algorithm.thread_func)(&report_progress);
-        println!("Result: {result}");
+        execute_and_print(&algorithm.thread_func, &report_progress);
     });
 
     ggez::event::run(ctx, event_loop, initial_state);
