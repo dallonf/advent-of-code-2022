@@ -21,6 +21,7 @@ thiserror = "1.0.37"
 erased-serde = "0.3.23"
 hex_color = "2.0.0"
 clap = { version = "4.0.26", features=["derive"] }
+indoc = "1.0.7"
 
 
 [dev-dependencies]
