@@ -3,7 +3,7 @@ use std::path::Path;
 use crate::framework::ReportProgress;
 use crate::lua::draw_runtime::DrawRuntime;
 use crate::prelude::*;
-use crate::puzzles::test_algo;
+use crate::puzzles;
 
 type ThreadFunc = Box<dyn (Fn(&Box<dyn ReportProgress>) -> String) + Send>;
 pub struct Algorithm {
@@ -13,8 +13,10 @@ pub struct Algorithm {
 
 pub fn load(day: &str, part: &str) -> Result<Algorithm> {
     let thread_func: ThreadFunc = match (day, part) {
-        ("test_algo", "part_one") => Box::new(|_| test_algo::part_one().to_string()),
-        ("test_algo", "part_two") => Box::new(|rp| test_algo::part_two(rp).to_string()),
+        ("test_algo", "part_one") => Box::new(|_| puzzles::test_algo::part_one().to_string()),
+        ("test_algo", "part_two") => Box::new(|rp| puzzles::test_algo::part_two(rp).to_string()),
+        ("day01", "part_one") => Box::new(|_| puzzles::day01::part_one().to_string()),
+        ("day01", "part_two") => Box::new(|_| puzzles::day01::part_two().to_string()),
         (_, _) => bail!("Couldn't find {day} {part}"),
     };
 

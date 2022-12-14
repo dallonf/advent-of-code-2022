@@ -163,7 +163,8 @@ fn main() -> anyhow::Result<()> {
         let report_progress: Box<dyn ReportProgress> = Box::new(AsyncReportProgress {
             sender: event_sender,
         });
-        (algorithm.thread_func)(&report_progress);
+        let result = (algorithm.thread_func)(&report_progress);
+        println!("Result: {result}");
     });
 
     ggez::event::run(ctx, event_loop, initial_state);
