@@ -20,6 +20,10 @@ end
 
 local function draw_range(ctx, range, x_cursor, y_cursor, intersections, opts)
   for i = range.start, range["end"] do
+    local x = x_cursor + (i - 1) * 32
+    if x > ctx.width then
+      break
+    end
     ctx.text(i, x_cursor + (i - 1) * 32, y_cursor, {
       color = intersections[i] and "red" or opts.base_color
     })
@@ -29,6 +33,9 @@ end
 function Draw(ctx)
   local y_cursor = 8
   for _, pair in ipairs(pairs) do
+    if y_cursor > ctx.height then
+      break
+    end
     ctx.text(pair.value[1].start .. "-" .. pair.value[1]["end"], 8, y_cursor)
     draw_range(ctx, pair.value[1], 128, y_cursor, pair.intersections, {
       base_color = pair.container == 1 and "green" or "black"
