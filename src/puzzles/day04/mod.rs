@@ -12,8 +12,27 @@ struct Assignment {
     end: i64,
 }
 
+impl Assignment {
+    fn overlaps_with(&self, other: &Self) -> bool {
+        self.inside(other.start) || self.inside(other.end)
+    }
+
+    fn inside(&self, point: i64) -> bool {
+        point >= self.start && point <= self.end
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct Pair(Assignment, Assignment);
+
+impl Pair {
+    fn has_overlap(&self) -> bool {
+        self.0.overlaps_with(&self.1)
+    }
+}
+
 #[derive(Debug, Clone)]
-struct Input(Vec<(Assignment, Assignment)>);
+struct Input(Vec<Pair>);
 
 impl FromStr for Input {
     type Err = anyhow::Error;
@@ -30,7 +49,12 @@ impl FromStr for Input {
                 })
         };
 
-        let pair = || assignment().then_ignore(just(',')).then(assignment());
+        let pair = || {
+            assignment()
+                .then_ignore(just(','))
+                .then(assignment())
+                .map(|(left, right)| Pair(left, right))
+        };
 
         let parser = pair()
             .separated_by(text::newline())
@@ -55,10 +79,10 @@ const SAMPLE_INPUT: &str = indoc! {"
   2-6,4-8
 "};
 
-pub fn part_one() -> Result<i64> {
+pub fn part_one() -> Result<usize> {
     let input: Input = SAMPLE_INPUT.parse()?;
-    dbg!(input);
-    todo!()
+    let overlaps = input.0.iter().filter(|pair| pair.has_overlap()).count();
+    Ok(overlaps)
 }
 
 pub fn part_two() -> Result<i64> {
