@@ -18,6 +18,14 @@ impl Debug for Rucksack {
     }
 }
 
+impl Rucksack {
+    fn all_items(&self) -> Vec<char> {
+        let mut new_vec = self.0.clone();
+        new_vec.extend_from_slice(&self.1);
+        new_vec
+    }
+}
+
 #[derive(Debug, Clone)]
 struct Input(Vec<Rucksack>);
 
@@ -60,6 +68,28 @@ fn get_priority(item: char) -> Result<i64> {
     }
 }
 
+fn find_badges(input: &Input) -> Result<i64> {
+    let all_badges: Result<Vec<i64>> = input
+        .0
+        .chunks(3)
+        .map(|group| {
+            let sets = group
+                .iter()
+                .map(|rucksack| HashSet::<_>::from_iter(rucksack.all_items().into_iter()));
+            let combined_set = sets
+                .reduce(|prev, next| prev.intersection(&next).copied().collect())
+                .unwrap();
+            combined_set
+                .iter()
+                .exactly_one()
+                .map_err(|err| anyhow!(err.to_string()))
+                .and_then(|it| get_priority(*it))
+        })
+        .collect();
+
+    Ok(all_badges?.iter().sum())
+}
+
 pub fn part_one() -> Result<i64> {
     let parsed: Input = include_str!("./puzzle_input.txt").parse()?;
     let result: i64 = parsed
@@ -78,7 +108,8 @@ pub fn part_one() -> Result<i64> {
 }
 
 pub fn part_two() -> Result<i64> {
-    todo!()
+    let parsed: Input = include_str!("./puzzle_input.txt").parse()?;
+    find_badges(&parsed)
 }
 
 #[cfg(test)]
@@ -88,5 +119,10 @@ mod test {
     #[test]
     fn part_one_answer() {
         assert_eq!(part_one().unwrap(), 8243);
+    }
+
+    #[test]
+    fn part_two_answer() {
+        assert_eq!(part_two().unwrap(), 2631);
     }
 }
