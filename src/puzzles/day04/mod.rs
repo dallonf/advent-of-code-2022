@@ -15,14 +15,18 @@ struct Assignment {
 
 impl Assignment {
     fn contains(&self, other: &Self, report_progress: &impl ReportProgress) -> bool {
-        self.inside(other.start, report_progress) && self.inside(other.end, report_progress)
+        self.contains_point(other.start, report_progress)
+            && self.contains_point(other.end, report_progress)
     }
 
     fn overlaps_with(&self, other: &Self, report_progress: &impl ReportProgress) -> bool {
-        self.inside(other.start, report_progress) || self.inside(other.end, report_progress)
+        self.contains_point(other.start, report_progress)
+            || self.contains_point(other.end, report_progress)
+            || other.contains_point(self.start, report_progress)
+            || other.contains_point(self.end, report_progress)
     }
 
-    fn inside(&self, point: i64, report_progress: &impl ReportProgress) -> bool {
+    fn contains_point(&self, point: i64, report_progress: &impl ReportProgress) -> bool {
         if point >= self.start && point <= self.end {
             report_progress.report_progress(Box::new(ProgressEvent::IntersectionFound {
                 position: point,
@@ -94,15 +98,6 @@ impl FromStr for Input {
     }
 }
 
-const SAMPLE_INPUT: &str = indoc! {"
-  2-4,6-8
-  2-3,4-5
-  5-7,7-9
-  2-8,3-7
-  6-6,4-6
-  2-6,4-8
-"};
-
 #[derive(Debug, Serialize)]
 enum ProgressEvent {
     AnalyzePair(Pair),
@@ -152,6 +147,16 @@ mod test {
     fn part_two_answer() {
         let report_progress: Box<dyn ReportProgress> = Box::new(NoOpReportProgress);
         let result = part_two(&report_progress).unwrap();
-        assert!(result > 747);
+        assert_eq!(result, 811);
+    }
+
+    #[test]
+    fn troublesome_overlap() {
+        let report_progress: Box<dyn ReportProgress> = Box::new(NoOpReportProgress);
+        let pair = Pair(
+            Assignment { start: 6, end: 21 },
+            Assignment { start: 5, end: 26 },
+        );
+        assert!(pair.has_overlap(&report_progress));
     }
 }
