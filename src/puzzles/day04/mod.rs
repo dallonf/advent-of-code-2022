@@ -14,24 +14,23 @@ struct Assignment {
 }
 
 impl Assignment {
-    fn overlaps_with(&self, other: &Self, report_progress: &impl ReportProgress) -> bool {
-        if self.inside(other.start) {
-            report_progress.report_progress(Box::new(ProgressEvent::IntersectionFound {
-                position: other.start,
-            }));
-            return true;
-        }
-        if self.inside(other.end) {
-            report_progress.report_progress(Box::new(ProgressEvent::IntersectionFound {
-                position: other.end,
-            }));
-            return true;
-        }
-        false
+    fn contains(&self, other: &Self, report_progress: &impl ReportProgress) -> bool {
+        self.inside(other.start, report_progress) && self.inside(other.end, report_progress)
     }
 
-    fn inside(&self, point: i64) -> bool {
-        point >= self.start && point <= self.end
+    fn overlaps_with(&self, other: &Self, report_progress: &impl ReportProgress) -> bool {
+        self.inside(other.start, report_progress) || self.inside(other.end, report_progress)
+    }
+
+    fn inside(&self, point: i64, report_progress: &impl ReportProgress) -> bool {
+        if point >= self.start && point <= self.end {
+            report_progress.report_progress(Box::new(ProgressEvent::IntersectionFound {
+                position: point,
+            }));
+            true
+        } else {
+            false
+        }
     }
 }
 
@@ -41,6 +40,18 @@ struct Pair(Assignment, Assignment);
 impl Pair {
     fn has_overlap(&self, report_progress: &impl ReportProgress) -> bool {
         self.0.overlaps_with(&self.1, report_progress)
+    }
+
+    fn has_full_overlap(&self, report_progress: &impl ReportProgress) -> bool {
+        if self.0.contains(&self.1, report_progress) {
+            report_progress.report_progress(Box::new(ProgressEvent::ContainsOther { which: 1 }));
+            true
+        } else if self.1.contains(&self.0, report_progress) {
+            report_progress.report_progress(Box::new(ProgressEvent::ContainsOther { which: 0 }));
+            true
+        } else {
+            false
+        }
     }
 }
 
@@ -96,16 +107,17 @@ const SAMPLE_INPUT: &str = indoc! {"
 enum ProgressEvent {
     AnalyzePair(Pair),
     IntersectionFound { position: i64 },
+    ContainsOther { which: u8 },
 }
 
 pub fn part_one(report_progress: &impl ReportProgress) -> Result<usize> {
-    let input: Input = SAMPLE_INPUT.parse()?;
+    let input: Input = include_str!("./puzzle_input.txt").parse()?;
     let overlaps = input
         .0
         .iter()
         .filter(|pair| {
             report_progress.report_progress(Box::new(ProgressEvent::AnalyzePair(**pair)));
-            pair.has_overlap(report_progress)
+            pair.has_full_overlap(report_progress)
         })
         .count();
     Ok(overlaps)
@@ -113,4 +125,17 @@ pub fn part_one(report_progress: &impl ReportProgress) -> Result<usize> {
 
 pub fn part_two() -> Result<i64> {
     todo!()
+}
+
+#[cfg(test)]
+mod test {
+    use crate::framework::NoOpReportProgress;
+
+    use super::*;
+
+    #[test]
+    fn part_one_answer() {
+        let report_progress: Box<dyn ReportProgress> = Box::new(NoOpReportProgress);
+        assert_eq!(part_one(&report_progress).unwrap(), 305);
+    }
 }
