@@ -1,7 +1,8 @@
 // Day 3: Rucksack Reorganization
 
-use std::str::FromStr;
+use std::collections::HashSet;
 use std::fmt::Debug;
+use std::str::FromStr;
 
 use crate::prelude::*;
 
@@ -10,7 +11,10 @@ struct Rucksack(Vec<char>, Vec<char>);
 
 impl Debug for Rucksack {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_tuple("Rucksack").field(&self.0.iter().join("")).field(&self.1.iter().join("")).finish()
+        f.debug_tuple("Rucksack")
+            .field(&self.0.iter().join(""))
+            .field(&self.1.iter().join(""))
+            .finish()
     }
 }
 
@@ -38,19 +42,39 @@ impl FromStr for Input {
     }
 }
 
-const SAMPLE_INPUT: &str = indoc! {"
-  vJrwpWtwJgWrhcsFMMfFFhFp
-  jqHRNqRjqzjGDLGLrsFMfFZSrLrFZsSL
-  PmmdzqPrVvPwwTWBwg
-  wMqvLMZHhHMvwLHjbvcjnnSBnvTQFn
-  ttgJtRGJQctTZtZT
-  CrZsJsPPZsGzwwsLwLmpwMDw
-"};
+fn get_repeated_item(rucksack: &Rucksack) -> Option<char> {
+    let second_compartment_set: HashSet<char> = rucksack.1.iter().copied().collect();
+    for c in rucksack.0.iter() {
+        if second_compartment_set.contains(&c) {
+            return Some(*c);
+        }
+    }
+    return None;
+}
+
+fn get_priority(item: char) -> Result<i64> {
+    match item {
+        'a'..='z' => Ok((item as i64 - 'a' as i64) + 1),
+        'A'..='Z' => Ok((item as i64 - 'A' as i64) + 27),
+        _ => Err(anyhow!("{item} doesn't have a priority")),
+    }
+}
 
 pub fn part_one() -> Result<i64> {
-    let parsed: Input = SAMPLE_INPUT.parse()?;
-    dbg!(&parsed);
-    todo!()
+    let parsed: Input = include_str!("./puzzle_input.txt").parse()?;
+    let result: i64 = parsed
+        .0
+        .iter()
+        .map(|it| {
+            get_repeated_item(&it)
+                .ok_or_else(|| anyhow!("couldn't find a repeated item for {it:?}"))
+        })
+        .map_ok(|it| get_priority(it))
+        .flatten_ok()
+        .collect::<Result<Vec<i64>>>()?
+        .iter()
+        .sum();
+    Ok(result)
 }
 
 pub fn part_two() -> Result<i64> {
@@ -60,4 +84,9 @@ pub fn part_two() -> Result<i64> {
 #[cfg(test)]
 mod test {
     use super::*;
+
+    #[test]
+    fn part_one_answer() {
+        assert_eq!(part_one().unwrap(), 8243);
+    }
 }
