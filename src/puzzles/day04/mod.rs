@@ -123,8 +123,17 @@ pub fn part_one(report_progress: &impl ReportProgress) -> Result<usize> {
     Ok(overlaps)
 }
 
-pub fn part_two() -> Result<i64> {
-    todo!()
+pub fn part_two(report_progress: &impl ReportProgress) -> Result<usize> {
+    let input: Input = include_str!("./puzzle_input.txt").parse()?;
+    let overlaps = input
+        .0
+        .iter()
+        .filter(|pair| {
+            report_progress.report_progress(Box::new(ProgressEvent::AnalyzePair(**pair)));
+            pair.has_overlap(report_progress)
+        })
+        .count();
+    Ok(overlaps)
 }
 
 #[cfg(test)]
@@ -137,5 +146,12 @@ mod test {
     fn part_one_answer() {
         let report_progress: Box<dyn ReportProgress> = Box::new(NoOpReportProgress);
         assert_eq!(part_one(&report_progress).unwrap(), 305);
+    }
+
+    #[test]
+    fn part_two_answer() {
+        let report_progress: Box<dyn ReportProgress> = Box::new(NoOpReportProgress);
+        let result = part_two(&report_progress).unwrap();
+        assert!(result > 747);
     }
 }
