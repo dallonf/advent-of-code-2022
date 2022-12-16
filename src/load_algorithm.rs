@@ -29,6 +29,8 @@ pub fn load(day: &str, part: &str) -> Result<Algorithm> {
         ("day04", "part_two") => {
             Box::new(|progress| puzzles::day04::part_two(progress).map(|it| it.to_string()))
         }
+        ("day05", "part_one") => Box::new(|_| puzzles::day05::part_one()),
+        ("day05", "part_two") => Box::new(|_| puzzles::day05::part_two()),
         (_, _) => bail!("Couldn't find {day} {part}"),
     };
 
