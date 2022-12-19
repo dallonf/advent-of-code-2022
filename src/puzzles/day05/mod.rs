@@ -11,6 +11,29 @@ struct Stack(VecDeque<char>);
 #[derive(Debug, PartialEq, Eq, Clone)]
 struct StackCollection(Vec<Stack>);
 
+impl StackCollection {
+    fn follow_instructions(&mut self, instruction: &[Instruction]) {
+        for instruction in instruction {
+            self.follow_instruction(instruction);
+        }
+    }
+
+    fn follow_instruction(&mut self, instruction: &Instruction) {
+        for _ in 0..instruction.quantity {
+            self.move_crate(instruction.from, instruction.to);
+        }
+    }
+
+    fn move_crate(&mut self, from: usize, to: usize) {
+        let from_stack = &mut self.0[from - 1];
+        let crate_to_move = from_stack.0.pop_back();
+        if let Some(crate_to_move) = crate_to_move {
+            let to_stack = &mut self.0[to - 1];
+            to_stack.0.push_back(crate_to_move);
+        }
+    }
+}
+
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 struct Instruction {
     from: usize,
@@ -22,6 +45,19 @@ struct Instruction {
 struct Input {
     stacks: StackCollection,
     instructions: Vec<Instruction>,
+}
+
+impl Input {
+    fn crates_after_instructions(mut self) -> String {
+        self.stacks.follow_instructions(&self.instructions);
+        let top_crates = self
+            .stacks
+            .0
+            .into_iter()
+            .filter_map(|stack| stack.0.back().map(|c| c.to_string()))
+            .collect_vec();
+        top_crates.join("")
+    }
 }
 
 impl FromStr for Input {
@@ -106,23 +142,39 @@ impl FromStr for Input {
     }
 }
 
-const SAMPLE_INPUT: &str = indoc! {"
-      [D]    
-  [N] [C]    
-  [Z] [M] [P]
-   1   2   3 
-
-  move 1 from 2 to 1
-  move 3 from 1 to 3
-  move 2 from 2 to 1
-  move 1 from 1 to 2
-"};
-
 pub fn part_one() -> Result<String> {
-    dbg!(SAMPLE_INPUT.parse::<Input>());
-    todo!()
+    let input = include_str!("./puzzle_input.txt").parse::<Input>()?;
+    Ok(input.crates_after_instructions())
 }
 
 pub fn part_two() -> Result<String> {
     todo!()
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    const SAMPLE_INPUT: &str = indoc! {"
+            [D]    
+        [N] [C]    
+        [Z] [M] [P]
+         1   2   3 
+
+        move 1 from 2 to 1
+        move 3 from 1 to 3
+        move 2 from 2 to 1
+        move 1 from 1 to 2
+    "};
+
+    #[test]
+    fn sample_crates_after_instructions() {
+        let input = SAMPLE_INPUT.parse::<Input>().unwrap();
+        assert_eq!(&input.crates_after_instructions(), "CMZ");
+    }
+
+    #[test]
+    fn part_one_answer() {
+        assert_eq!(part_one().unwrap(), "FWNSHLDNZ");
+    }
 }
