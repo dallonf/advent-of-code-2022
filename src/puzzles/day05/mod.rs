@@ -89,7 +89,7 @@ impl Input {
     }
 
     fn crates_after_instructions(mut self) -> Result<String> {
-        self.stacks.follow_instructions(&self.instructions);
+        self.stacks.follow_instructions(&self.instructions)?;
         Ok(self.top_crates())
     }
 }
