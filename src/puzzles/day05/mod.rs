@@ -12,25 +12,50 @@ struct Stack(VecDeque<char>);
 struct StackCollection(Vec<Stack>);
 
 impl StackCollection {
-    fn follow_instructions(&mut self, instruction: &[Instruction]) {
+    fn follow_instructions_compat(&mut self, instruction: &[Instruction]) {
         for instruction in instruction {
-            self.follow_instruction(instruction);
+            self.follow_instruction_compat(instruction);
         }
     }
 
-    fn follow_instruction(&mut self, instruction: &Instruction) {
+    fn follow_instruction_compat(&mut self, instruction: &Instruction) {
         for _ in 0..instruction.quantity {
-            self.move_crate(instruction.from, instruction.to);
+            self.move_one_crate(instruction.from, instruction.to);
         }
     }
 
-    fn move_crate(&mut self, from: usize, to: usize) {
+    fn move_one_crate(&mut self, from: usize, to: usize) {
         let from_stack = &mut self.0[from - 1];
         let crate_to_move = from_stack.0.pop_back();
         if let Some(crate_to_move) = crate_to_move {
             let to_stack = &mut self.0[to - 1];
             to_stack.0.push_back(crate_to_move);
         }
+    }
+
+    fn follow_instruction(&mut self, instruction: &Instruction) -> Result<()> {
+        let from_stack = &mut self.0[instruction.from - 1];
+        let mut moving_stack: Vec<char> = (0..instruction.quantity)
+            .map(|_| {
+                from_stack
+                    .0
+                    .pop_back()
+                    .ok_or_else(|| anyhow!("No crates to grab"))
+            })
+            .collect::<Result<_>>()?;
+        moving_stack.reverse();
+        let to_stack = &mut self.0[instruction.to - 1];
+        for crate_to_move in moving_stack {
+            to_stack.0.push_back(crate_to_move);
+        }
+        Ok(())
+    }
+
+    fn follow_instructions(&mut self, instructions: &[Instruction]) -> Result<()> {
+        for instruction in instructions {
+            self.follow_instruction(instruction)?;
+        }
+        Ok(())
     }
 }
 
@@ -48,15 +73,24 @@ struct Input {
 }
 
 impl Input {
-    fn crates_after_instructions(mut self) -> String {
-        self.stacks.follow_instructions(&self.instructions);
+    fn crates_after_instructions_compat(mut self) -> String {
+        self.stacks.follow_instructions_compat(&self.instructions);
+        self.top_crates()
+    }
+
+    fn top_crates(&self) -> String {
         let top_crates = self
             .stacks
             .0
-            .into_iter()
+            .iter()
             .filter_map(|stack| stack.0.back().map(|c| c.to_string()))
             .collect_vec();
         top_crates.join("")
+    }
+
+    fn crates_after_instructions(mut self) -> Result<String> {
+        self.stacks.follow_instructions(&self.instructions);
+        Ok(self.top_crates())
     }
 }
 
@@ -144,11 +178,12 @@ impl FromStr for Input {
 
 pub fn part_one() -> Result<String> {
     let input = include_str!("./puzzle_input.txt").parse::<Input>()?;
-    Ok(input.crates_after_instructions())
+    Ok(input.crates_after_instructions_compat())
 }
 
 pub fn part_two() -> Result<String> {
-    todo!()
+    let input = include_str!("./puzzle_input.txt").parse::<Input>()?;
+    input.crates_after_instructions()
 }
 
 #[cfg(test)]
@@ -170,11 +205,22 @@ mod test {
     #[test]
     fn sample_crates_after_instructions() {
         let input = SAMPLE_INPUT.parse::<Input>().unwrap();
-        assert_eq!(&input.crates_after_instructions(), "CMZ");
+        assert_eq!(&input.crates_after_instructions_compat(), "CMZ");
     }
 
     #[test]
     fn part_one_answer() {
         assert_eq!(part_one().unwrap(), "FWNSHLDNZ");
+    }
+
+    #[test]
+    fn sample_crates_after_part_two_instructions() {
+        let input = SAMPLE_INPUT.parse::<Input>().unwrap();
+        assert_eq!(&input.crates_after_instructions().unwrap(), "MCD");
+    }
+
+    #[test]
+    fn part_two_answer() {
+        assert_eq!(part_two().unwrap(), "RNRGDNFQG");
     }
 }
