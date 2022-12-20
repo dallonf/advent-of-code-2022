@@ -86,6 +86,26 @@ impl Directory {
         }
         Ok(dir)
     }
+
+    fn dirs_recursive<'a>(
+        &'a self,
+        path: Vec<String>,
+    ) -> Box<dyn Iterator<Item = (Vec<String>, &'a Directory)> + 'a> {
+        let path_clone = path.to_vec();
+        let children = self
+            .items
+            .iter()
+            .filter_map(move |(name, item)| match item {
+                Item::Directory(dir) => {
+                    let mut new_path = path_clone.to_vec();
+                    new_path.push(name.to_string());
+                    Some((new_path, dir))
+                }
+                Item::File { .. } => None,
+            })
+            .flat_map(|(path, dir)| dir.dirs_recursive(path));
+        Box::new(std::iter::once((path, self)).chain(children))
+    }
 }
 
 impl Item {
@@ -98,30 +118,24 @@ impl Item {
 }
 
 fn crawl_for_small_dirs(fs: &Directory) -> u64 {
-    #[derive(Default)]
-    struct Crawler {
-        size_cache: HashMap<Vec<String>, u64>,
-        matching_dir_sizes: Vec<u64>,
-    }
-    impl Crawler {
-        fn crawl(&mut self, dir: &Directory, path: &[String]) {
-            let size = dir.get_size_with_cache(&path, &mut self.size_cache);
-            if size <= 100000 {
-                self.matching_dir_sizes.push(size);
-            }
-            for (name, child) in dir.items.iter().filter_map(|(name, child)| match child {
-                Item::Directory(dir) => Some((name, dir)),
-                Item::File { .. } => None,
-            }) {
-                let mut new_path = path.to_vec();
-                new_path.push(name.to_owned());
-                self.crawl(child, &new_path);
-            }
-        }
-    }
-    let mut crawler = Crawler::default();
-    crawler.crawl(fs, &vec![]);
-    crawler.matching_dir_sizes.iter().sum()
+    let mut size_cache = HashMap::<Vec<String>, u64>::new();
+    fs.dirs_recursive(vec![])
+        .map(|(path, dir)| dir.get_size_with_cache(&path, &mut size_cache))
+        .filter(|size| *size <= 100_000)
+        .sum()
+}
+
+const TOTAL_SPACE: u64 = 70_000_000;
+const REQUIRED_SPACE: u64 = 30_000_000;
+fn clear_space(fs: &Directory) -> Option<u64> {
+    let mut size_cache: HashMap<Vec<String>, u64> = HashMap::new();
+    let current_size = fs.get_size_with_cache(&vec![], &mut size_cache);
+    let unused_space = TOTAL_SPACE - current_size;
+    let amount_to_remove = REQUIRED_SPACE - unused_space;
+    fs.dirs_recursive(vec![])
+        .map(|(path, dir)| dir.get_size_with_cache(&path, &mut size_cache))
+        .filter(|size| *size >= amount_to_remove)
+        .min()
 }
 
 pub fn part_one() -> Result<u64> {
@@ -130,7 +144,8 @@ pub fn part_one() -> Result<u64> {
 }
 
 pub fn part_two() -> Result<u64> {
-    todo!()
+    let fs = Directory::fs_from_input(include_str!("./puzzle_input.txt"))?;
+    clear_space(&fs).ok_or_else(|| anyhow!("Couldn't find a suitable directory"))
 }
 
 #[cfg(test)]
@@ -140,5 +155,10 @@ mod test {
     #[test]
     fn part_one_answer() {
         assert_eq!(part_one().unwrap(), 1077191);
+    }
+
+    #[test]
+    fn part_two_answer() {
+        assert_eq!(part_two().unwrap(), 5649896);
     }
 }
